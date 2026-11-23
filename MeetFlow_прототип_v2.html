@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeetFlow: ассистент руководителя проекта (вариант 2)</title>
+<style>
+/* MeetFlow, вариант 2.
+   Радиусы: панели 14px; кнопки, метки и капсулы полностью скруглены; поля ввода 8px.
+   Красный: бренд, главное действие, счётчики и риски. Синий, янтарный и зелёный
+   только метят внешние сервисы (трекер, почта, календарь), чтобы их узнавали по цвету. */
+:root{
+  --bg:#f1f1ef; --surface:#ffffff; --soft:#f7f7f5; --ink:#151515; --muted:#6a6a6a; --line:#e2e2df;
+  --red:#e2321c; --red-hover:#c92814; --red-soft:#fde8e4; --c-tracker:#2f62e9; --c-tracker-soft:#e6ecfd; --c-mail:#b26a00; --c-mail-soft:#fcefd8; --c-cal:#13845a; --c-cal-soft:#ddf2e7; --ok:#1d7a46; --warn:#8f5300; --warn-soft:#fbf0dc;
+  --sans:"Helvetica Neue",Helvetica,Arial,sans-serif; --mono:"Courier New",Courier,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.i{display:inline-flex;width:18px;height:18px;flex:none}
+.i svg{width:100%;height:100%}
+/* шапка */
+header.top{position:sticky;top:0;z-index:20;background:rgba(241,241,239,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topin{max-width:1240px;margin:0 auto;height:64px;padding:0 28px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;color:var(--ink)}
+.brand svg{width:30px;height:30px;display:block}
+.brand b{font-size:19px;font-weight:700;letter-spacing:-.03em}
+nav.main{display:flex;justify-content:center;gap:2px}
+nav.main a{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;color:var(--ink);text-decoration:none;cursor:pointer;font-size:15px;white-space:nowrap}
+nav.main a:hover{background:#e6e6e3}
+nav.main a.active{background:var(--ink);color:#fff}
+.cnt{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--red);margin-left:1px}
+nav.main a.active .cnt{color:#ff8b7a}
+.topr{display:flex;align-items:center;gap:18px}
+.stamp{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}
+.menubtn{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:8px 2px;cursor:pointer;font-size:15px}
+/* меню: небольшая панель под кнопкой */
+.topr{position:relative}
+.menubtn[aria-expanded=true]{color:var(--red)}
+#menu{position:absolute;top:calc(100% + 10px);right:0;width:384px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px rgba(40,40,30,.14);padding:8px;display:none;z-index:40}
+#menu.open{display:block}
+.pop-h{font-size:13px;color:var(--muted);padding:8px 10px 4px}
+.svc{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 10px;border-radius:10px;color:var(--ink);text-decoration:none}
+.svc:hover,.svc.cur{background:var(--soft)}
+.svc b{display:block;font-size:15.5px;font-weight:600;line-height:1.25}
+.svc small{display:block;font-size:13px;color:var(--muted)}
+.tile{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none}
+.tile .i{width:22px;height:22px}
+.c-tracker{background:var(--c-tracker-soft);color:var(--c-tracker)}
+.c-mail{background:var(--c-mail-soft);color:var(--c-mail)}
+.c-cal{background:var(--c-cal-soft);color:var(--c-cal)}
+.demo{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.pop-sep{height:1px;background:var(--line);margin:6px 8px}
+.pop-mini{display:flex;gap:2px;flex-wrap:wrap;padding:2px 2px 4px}
+.pop-mini a{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:13.5px;color:var(--muted);text-decoration:none}
+.pop-mini a:hover,.pop-mini a.cur{background:var(--soft);color:var(--ink)}
+.pop-mini .i{width:15px;height:15px}
+/* страница */
+main{max-width:1240px;margin:0 auto;padding:36px 28px 140px}
+.ptitle{font-size:46px;line-height:1.05;letter-spacing:-.035em;font-weight:600;margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 28px;max-width:70ch;font-size:15.5px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:18px}
+.card h2{font-size:17px;margin:0 0 14px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.muted{color:var(--muted)} .small{font-size:13px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+/* кнопки */
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 16px;border-radius:999px;cursor:pointer;font-size:14.5px;font-weight:500;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:#bdbdb8}
+.btn:active{transform:translateY(1px)}
+.btn .i{width:16px;height:16px}
+.btn.primary,.btn.ok{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover,.btn.ok:hover{background:#333}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.red:hover{background:var(--red-hover)}
+.btn.danger{color:var(--red)}
+.btn.sm{padding:5px 12px;font-size:13.5px}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+/* метки */
+.tag{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:2px 10px 2px 8px;font-size:13px;font-weight:500;white-space:nowrap}
+.tag .i{width:14px;height:14px}
+.t-risk{color:var(--red);border-color:#f6c8c0;background:var(--red-soft)}
+.conf-high{color:var(--ok)} .conf-medium{color:var(--warn)} .conf-low{color:var(--red)}
+.flag{font-size:13px;color:var(--warn);font-weight:600;margin-top:4px}
+.quote{color:var(--muted);font-size:13px;margin-top:6px}
+.ts{font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:700;margin-right:4px}
+/* поля */
+input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
+select{-webkit-appearance:none;appearance:none;padding-right:34px;max-width:100%;text-overflow:ellipsis;cursor:pointer;
+  background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23151515' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E") no-repeat right 11px center/14px 14px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
+textarea{width:100%;min-height:160px;font-size:14px}
+label.f{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+label.chk{display:flex;gap:9px;align-items:flex-start;margin:12px 0 0;font-size:14.5px}
+input[type=checkbox]{accent-color:var(--ink);width:17px;height:17px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:14px;cursor:pointer;background:var(--surface)}
+.pill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* главная */
+.kline{display:flex;gap:44px;flex-wrap:wrap;margin:0 0 30px}
+.kline div b{display:block;font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.kline div span{font-size:14px;color:var(--muted)}
+.kline .hot b{color:var(--red)}
+/* встречи: карточки-постеры */
+.posters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:18px}
+.poster{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;min-height:250px}
+.poster .when{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.poster h3{font-size:23px;line-height:1.15;letter-spacing:-.02em;font-weight:600;margin:0}
+.ava{display:flex}
+.ava span{width:30px;height:30px;border-radius:50%;background:#e8e8e5;border:2px solid var(--surface);display:grid;place-items:center;font-size:11.5px;font-weight:700;margin-left:-6px}
+.ava span:first-child{margin-left:0}
+.ava span.ext{background:var(--ink);color:#fff}
+.poster .foot{margin-top:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.st{font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.st.wait{color:var(--red);font-weight:600}
+.st.done{color:var(--ok)}
+.poster.new{border-style:dashed;align-items:flex-start;justify-content:center;cursor:pointer;background:transparent;font:inherit;color:inherit;text-align:left;width:100%}
+.poster.new:hover{background:var(--surface)}
+#addm{scroll-margin-top:84px}
+@media(max-width:900px){#addm{scroll-margin-top:124px}}
+/* обработка */
+.steps{display:grid;grid-template-columns:repeat(7,1fr);gap:0;margin:0 0 18px;counter-reset:st}
+.step{padding:12px 12px 12px 0;border-top:2px solid var(--line);font-size:13px;counter-increment:st;color:var(--muted)}
+.step b{display:block;font-size:14.5px;font-weight:600;color:var(--ink)}
+.step b::before{content:counter(st);display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#e6e6e3;font-size:11.5px;margin-right:7px;vertical-align:1px}
+.step.run{border-top-color:var(--red)} .step.run b::before{background:var(--red);color:#fff}
+.step.done{border-top-color:var(--ink)} .step.done b::before{background:var(--ink);color:#fff}
+.log{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 20px;font-size:14px;line-height:1.75;min-height:120px;max-height:330px;overflow:auto}
+.log .a{font-weight:600;margin-top:4px}.log .w{color:var(--warn)}.log .d{color:var(--ok);font-weight:600;margin-top:6px}
+.log div:not(.a):not(.d){padding-left:16px}
+/* подтверждение */
+.agent-h{display:flex;align-items:center;gap:9px;margin:26px 0 4px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+.agent-h:first-child{margin-top:0}
+.agent-h .i{width:20px;height:20px}
+.rv{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.rv>input{margin-top:3px}
+.rv.compact{padding:9px 0}
+.rv-c{display:flex;justify-content:space-between;gap:16px}
+.rv-fields{display:grid;grid-template-columns:minmax(0,1fr) 200px 140px;gap:8px;margin-top:8px}
+.rv-fields.todo-f{grid-template-columns:auto minmax(0,1fr) 140px;align-items:center;margin-top:0}
+.mail{white-space:pre-wrap;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:16px 18px;max-width:80ch;font-size:14.5px}
+details summary{cursor:pointer;color:var(--muted);font-size:13.5px;margin-top:6px;line-height:20px}
+details summary .i{width:16px;height:16px;vertical-align:-3px;margin:0 2px}
+/* мои задачи */
+.todo{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line)}
+.todo input{margin-top:3px}
+.todo.done .tx>div:first-child{text-decoration:line-through;color:var(--muted)}
+.todo .due{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap;margin-left:auto;padding-left:16px}
+.todo .due.late{color:var(--red)}
+.seg{display:inline-flex;background:#e6e6e3;border-radius:999px;padding:3px}
+.seg span{padding:6px 14px;border-radius:999px;cursor:pointer;font-size:14px}
+.seg span.on{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:600}
+/* итоги в сервисах */
+.svc-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 18px}
+.svc-tab{display:inline-flex;align-items:center;gap:9px;padding:5px 15px 5px 5px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14.5px;color:var(--ink);text-decoration:none}
+.svc-tab .tile{width:30px;height:30px;border-radius:50%}
+.svc-tab .tile .i{width:17px;height:17px}
+.svc-tab .n{color:var(--muted)}
+.svc-tab.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:600}
+.note{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:18px;font-size:14.5px}
+.note>.i{width:20px;height:20px;margin-top:1px;color:var(--muted)}
+.note p{margin:0}
+.note a{color:var(--ink);text-underline-offset:2px}
+.key{font-family:var(--mono);font-weight:700;font-size:13px;white-space:nowrap}
+.stt{display:inline-block;font-size:12.5px;border-radius:999px;padding:2px 10px;white-space:nowrap;background:#ececea}
+.stt.s-work{background:var(--c-tracker-soft);color:var(--c-tracker)}
+.stt.s-rev{background:var(--c-mail-soft);color:var(--c-mail)}
+.stt.s-done{background:var(--c-cal-soft);color:var(--c-cal)}
+.ml{border-top:1px solid var(--line);padding:14px 0}
+.ml:first-of-type{border-top:0;padding-top:0}
+/* добавление встречи */
+.addm{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px}
+.drop{position:relative;border:1.5px dashed #c6c6c1;border-radius:14px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;background:var(--soft)}
+.drop.over{border-color:var(--ink);background:#ececea}
+.drop .big{width:46px;height:46px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;margin-bottom:4px}
+.drop .big .i{width:22px;height:22px}
+.drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.drop:focus-within label.btn{outline:2px solid var(--red);outline-offset:2px}
+.drop p{margin:0}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13.5px}
+.chip .i{width:15px;height:15px}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:16px 0 8px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+details.people{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+details.people summary{margin:0;color:var(--ink);font-size:14px}
+details.people textarea{margin-top:10px;min-height:130px}
+.code{white-space:pre-wrap;word-break:break-word;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:12.5px/1.55 var(--mono);max-height:260px;overflow:auto}
+/* капсула действий внизу */
+#pill{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;background:var(--ink);color:#fff;border-radius:999px;padding:6px;display:none;align-items:center;gap:4px;box-shadow:0 10px 30px rgba(21,21,21,.22);max-width:calc(100vw - 32px)}
+#pill.show{display:flex}
+#pill .pinfo{padding:0 14px 0 12px;font-size:14px;color:#cfcfcf;white-space:nowrap}
+#pill .pinfo b{color:#fff}
+#pill .pbtn{display:inline-flex;align-items:center;gap:7px;background:transparent;border:0;color:#fff;padding:9px 16px;border-radius:999px;cursor:pointer;font-size:14.5px;font-weight:500;white-space:nowrap}
+#pill .pbtn:hover{background:#2e2e2e}
+#pill .pbtn.red{background:var(--red)}
+#pill .pbtn.red:hover{background:var(--red-hover)}
+#pill .pbtn:disabled{opacity:.45;cursor:default}
+#pill .pbtn .i{width:16px;height:16px}
+.toast{position:fixed;left:50%;bottom:86px;transform:translate(-50%,6px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:35;font-size:14px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}.btn:active{transform:none}}
+@media(max-width:1000px){.topin{grid-template-columns:auto 1fr auto;gap:12px}.stamp{display:none}nav.main{justify-content:flex-start;overflow-x:auto}
+  .posters{grid-template-columns:1fr 1fr}.two,.addm{grid-template-columns:1fr}.steps{grid-template-columns:repeat(4,minmax(0,1fr))}.ptitle{font-size:36px}}
+@media(max-width:900px){
+  .topin{grid-template-columns:1fr auto;grid-template-rows:56px auto;height:auto;padding:0 16px;gap:0 12px}
+  nav.main{grid-column:1 / -1;grid-row:2;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:0 0 8px;overflow:visible}
+  nav.main a{justify-content:center;padding:8px 6px}
+}
+@media(max-width:640px){
+  nav.main a{flex-direction:column;gap:3px;padding:7px 2px;border-radius:12px;font-size:11.5px;position:relative}
+  nav.main a .i{width:20px;height:20px}
+  nav.main a .cnt{position:absolute;top:3px;right:calc(50% - 22px);font-size:10px}
+  .posters{grid-template-columns:1fr}.rv-fields{grid-template-columns:1fr}main{padding:24px 16px 190px}
+  .steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card{overflow-x:auto}
+  #pill{left:12px;right:12px;bottom:12px;transform:none;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:22px;padding:8px}
+  #pill .pinfo{flex:1 0 100%;text-align:center;padding:4px 8px 6px;overflow:hidden;text-overflow:ellipsis}
+  #pill .pbtn{flex:1 1 auto;justify-content:center;white-space:normal;text-align:center;padding:10px 12px}
+  .toast{bottom:150px}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="topin">
+  <a class="brand" href="#dashboard" onclick="event.preventDefault();go('dashboard')" aria-label="MeetFlow, главная"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 3h22a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H13l-7 6v-6H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" fill="#e2321c"/><path d="M9 18V10.5h2.2v1.1c.5-.8 1.3-1.3 2.4-1.3 1.1 0 1.9.5 2.3 1.4.6-.9 1.5-1.4 2.6-1.4 1.8 0 2.8 1.1 2.8 3.1V18h-2.3v-4.3c0-1-.4-1.5-1.2-1.5-.9 0-1.4.6-1.4 1.7V18H14.1v-4.3c0-1-.4-1.5-1.2-1.5-.9 0-1.5.6-1.5 1.7V18z" fill="#fff"/></svg><b>meetflow</b></a>
+  <nav class="main" id="nav" aria-label="Основные разделы"></nav>
+  <div class="topr"><span class="stamp" id="stamp"></span><button class="menubtn" id="menuBtn" onclick="toggleMenu()" aria-expanded="false" aria-controls="menu"><span class="i" data-i="List"></span>меню</button><div id="menu" aria-label="Меню"></div></div>
+</div></header>
+<main id="view"></main>
+<div id="pill" role="toolbar" aria-label="Действия"></div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+/* Иконки Phosphor (MIT), извлечены из пакета react-icons */
+const ICONS = {"House":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z\"></path></svg>","VideoCamera":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z\"></path></svg>","Lightning":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5-9.06L62,132.71l84.62-90.66L136.16,94.43a8,8,0,0,0,5,9.06l52.8,19.8Z\"></path></svg>","SealCheck":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z\"></path></svg>","ListChecks":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z\"></path></svg>","Kanban":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M216,48H40a8,8,0,0,0-8,8V208a16,16,0,0,0,16,16H88a16,16,0,0,0,16-16V160h48v16a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V56A8,8,0,0,0,216,48ZM88,208H48V128H88Zm0-96H48V64H88Zm64,32H104V64h48Zm56,32H168V128h40Zm0-64H168V64h40Z\"></path></svg>","EnvelopeSimple":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM203.43,64,128,133.15,52.57,64ZM216,192H40V74.19l82.59,75.71a8,8,0,0,0,10.82,0L216,74.19V192Z\"></path></svg>","CalendarBlank":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z\"></path></svg>","ClockCounterClockwise":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M136,80v43.47l36.12,21.67a8,8,0,0,1-8.24,13.72l-40-24A8,8,0,0,1,120,128V80a8,8,0,0,1,16,0Zm-8-48A95.44,95.44,0,0,0,60.08,60.15C52.81,67.51,46.35,74.59,40,82V64a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16H49c7.15-8.42,14.27-16.35,22.39-24.57a80,80,0,1,1,1.66,114.75,8,8,0,1,0-11,11.64A96,96,0,1,0,128,32Z\"></path></svg>","Target":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M221.87,83.16A104.1,104.1,0,1,1,195.67,49l22.67-22.68a8,8,0,0,1,11.32,11.32l-96,96a8,8,0,0,1-11.32-11.32l27.72-27.72a40,40,0,1,0,17.87,31.09,8,8,0,1,1,16-.9,56,56,0,1,1-22.38-41.65L184.3,60.39a87.88,87.88,0,1,0,23.13,29.67,8,8,0,0,1,14.44-6.9Z\"></path></svg>","GearSix":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm109.94-52.79a8,8,0,0,0-3.89-5.4l-29.83-17-.12-33.62a8,8,0,0,0-2.83-6.08,111.91,111.91,0,0,0-36.72-20.67,8,8,0,0,0-6.46.59L128,41.85,97.88,25a8,8,0,0,0-6.47-.6A112.1,112.1,0,0,0,54.73,45.15a8,8,0,0,0-2.83,6.07l-.15,33.65-29.83,17a8,8,0,0,0-3.89,5.4,106.47,106.47,0,0,0,0,41.56,8,8,0,0,0,3.89,5.4l29.83,17,.12,33.62a8,8,0,0,0,2.83,6.08,111.91,111.91,0,0,0,36.72,20.67,8,8,0,0,0,6.46-.59L128,214.15,158.12,231a7.91,7.91,0,0,0,3.9,1,8.09,8.09,0,0,0,2.57-.42,112.1,112.1,0,0,0,36.68-20.73,8,8,0,0,0,2.83-6.07l.15-33.65,29.83-17a8,8,0,0,0,3.89-5.4A106.47,106.47,0,0,0,237.94,107.21Zm-15,34.91-28.57,16.25a8,8,0,0,0-3,3c-.58,1-1.19,2.06-1.81,3.06a7.94,7.94,0,0,0-1.22,4.21l-.15,32.25a95.89,95.89,0,0,1-25.37,14.3L134,199.13a8,8,0,0,0-3.91-1h-.19c-1.21,0-2.43,0-3.64,0a8.08,8.08,0,0,0-4.1,1l-28.84,16.1A96,96,0,0,1,67.88,201l-.11-32.2a8,8,0,0,0-1.22-4.22c-.62-1-1.23-2-1.8-3.06a8.09,8.09,0,0,0-3-3.06l-28.6-16.29a90.49,90.49,0,0,1,0-28.26L61.67,97.63a8,8,0,0,0,3-3c.58-1,1.19-2.06,1.81-3.06a7.94,7.94,0,0,0,1.22-4.21l.15-32.25a95.89,95.89,0,0,1,25.37-14.3L122,56.87a8,8,0,0,0,4.1,1c1.21,0,2.43,0,3.64,0a8.08,8.08,0,0,0,4.1-1l28.84-16.1A96,96,0,0,1,188.12,55l.11,32.2a8,8,0,0,0,1.22,4.22c.62,1,1.23,2,1.8,3.06a8.09,8.09,0,0,0,3,3.06l28.6,16.29A90.49,90.49,0,0,1,222.9,142.12Z\"></path></svg>","List":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z\"></path></svg>","X":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z\"></path></svg>","DownloadSimple":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z\"></path></svg>","UploadSimple":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z\"></path></svg>","Warning":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z\"></path></svg>","Question":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z\"></path></svg>","Gavel":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M243.32,116.69l-16-16a16,16,0,0,0-20.84-1.53L156.84,49.52a16,16,0,0,0-1.52-20.84l-16-16a16,16,0,0,0-22.63,0l-64,64a16,16,0,0,0,0,22.63l16,16a16,16,0,0,0,20.83,1.52L96.69,124,31.31,189.38A25,25,0,0,0,66.63,224.7L132,159.32l7.17,7.16a16,16,0,0,0,1.52,20.84l16,16a16,16,0,0,0,22.63,0l64-64A16,16,0,0,0,243.32,116.69ZM80,104,64,88l64-64,16,16ZM55.32,213.38a9,9,0,0,1-12.69,0,9,9,0,0,1,0-12.68L108,135.32,120.69,148ZM101,105.66,145.66,61,195,110.34,150.35,155ZM168,192l-16-16,4-4h0l56-56h0l4-4,16,16Z\"></path></svg>","ArrowsLeftRight":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M213.66,181.66l-32,32a8,8,0,0,1-11.32-11.32L188.69,184H48a8,8,0,0,1,0-16H188.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,213.66,181.66Zm-139.32-64a8,8,0,0,0,11.32-11.32L67.31,88H208a8,8,0,0,0,0-16H67.31L85.66,53.66A8,8,0,0,0,74.34,42.34l-32,32a8,8,0,0,0,0,11.32Z\"></path></svg>","Phone":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z\"></path></svg>","Eye":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.47,133.47,0,0,1,25,128,133.33,133.33,0,0,1,48.07,97.25C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.25A133.46,133.46,0,0,1,231.05,128C223.84,141.46,192.43,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z\"></path></svg>","Check":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z\"></path></svg>","Plus":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z\"></path></svg>","Play":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z\"></path></svg>","MagnifyingGlass":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z\"></path></svg>","CaretRight":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z\"></path></svg>","Users":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z\"></path></svg>","FileText":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z\"></path></svg>","CalendarPlus":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-48-56a8,8,0,0,1-8,8H136v16a8,8,0,0,1-16,0V160H104a8,8,0,0,1,0-16h16V128a8,8,0,0,1,16,0v16h16A8,8,0,0,1,160,152Z\"></path></svg>","Robot":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-52-56H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Z\"></path></svg>","ChatCircleText":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M168,112a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,112Zm-8,24H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm72-8A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z\"></path></svg>","ArrowRight":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z\"></path></svg>","Waveform":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M56,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM88,24a8,8,0,0,0-8,8V224a8,8,0,0,0,16,0V32A8,8,0,0,0,88,24Zm40,32a8,8,0,0,0-8,8V192a8,8,0,0,0,16,0V64A8,8,0,0,0,128,56Zm40,32a8,8,0,0,0-8,8v64a8,8,0,0,0,16,0V96A8,8,0,0,0,168,88Zm40-16a8,8,0,0,0-8,8v96a8,8,0,0,0,16,0V80A8,8,0,0,0,208,72Z\"></path></svg>","Flag":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,16.4,8.11,34.06,16.85,53,16.85,13.93,0,28.54-4.75,43.82-18a8,8,0,0,0,2.76-6V56A8,8,0,0,0,218.76,50c-28,24.23-51.72,12.49-79.21-1.12C111.07,34.76,78.78,18.79,42.76,50ZM216,172.25c-26.79,21.16-49.87,9.74-76.45-3.41-25-12.35-52.81-26.13-83.55-8.4V59.79c26.79-21.16,49.87-9.75,76.45,3.4,25,12.35,52.82,26.13,83.55,8.4Z\"></path></svg>","Info":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z\"></path></svg>","PlugsConnected":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M237.66,18.34a8,8,0,0,0-11.32,0l-52.4,52.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L100,88.69l-6.34-6.35A8,8,0,0,0,82.34,93.66L88.69,100,65.37,123.31a32,32,0,0,0,0,45.26l5.38,5.37-52.41,52.4a8,8,0,0,0,11.32,11.32l52.4-52.41,5.37,5.38a32,32,0,0,0,45.26,0L156,167.31l6.34,6.35a8,8,0,0,0,11.32-11.32L167.31,156l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,52.41-52.4A8,8,0,0,0,237.66,18.34Zm-116.29,161a16,16,0,0,1-22.62,0L76.69,157.25a16,16,0,0,1,0-22.62L100,111.31,144.69,156Zm57.94-57.94L156,144.69,111.31,100l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,179.31,121.37ZM88.57,35A8,8,0,0,1,103.43,29l8,20A8,8,0,0,1,96.57,55ZM24.57,93A8,8,0,0,1,35,88.57l20,8A8,8,0,0,1,49,111.43l-20-8A8,8,0,0,1,24.57,93ZM231.43,163a8,8,0,0,1-10.4,4.46l-20-8A8,8,0,1,1,207,144.57l20,8A8,8,0,0,1,231.43,163Zm-64,58.06A8,8,0,0,1,152.57,227l-8-20A8,8,0,0,1,159.43,201Z\"></path></svg>","CaretDown":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z\"></path></svg>","Paperclip":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z\"></path></svg>","ArrowSquareOut":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z\"></path></svg>","Code":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.3Zm176,27.7-48-40a8,8,0,1,0-10.24,12.3L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z\"></path></svg>","Tray":"<svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V152h-28.7A15.86,15.86,0,0,0,168,156.69L148.69,176H107.31L88,156.69A15.86,15.86,0,0,0,76.69,152H48V48Zm0,160H48V168H76.69L96,187.31A15.86,15.86,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z\"></path></svg>"};
+const ic = (n, cls) => `<span class="i${cls?" "+cls:""}">${ICONS[n]||""}</span>`;
+/* =====================================================================
+   MeetFlow: демонстрационный прототип мультиагентной системы
+   обработки рабочих встреч (Яндекс Телемост) для руководителя проекта.
+   Работает автономно в браузере. Данные хранятся в localStorage.
+   ===================================================================== */
+
+const STORE_KEY = 'meetflow_v1';
+const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const WD_NAMES = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const TYPE_RU = {task:'Задача', pm:'Действие руководителя', decision:'Решение', risk:'Риск', question:'Открытый вопрос', meeting:'Встреча', status:'Статус задачи'};
+const PM_SUB_RU = {contact:'связаться', control:'проконтролировать', do:'сделать'};
+
+/* ---------------------------- демо-данные ---------------------------- */
+const TEAM = [
+  {name:'Алексей Смирнов', email:'a.smirnov@example.ru', role:'Руководитель проекта', aliases:['Алексей','Алёша','Алексею']},
+  {name:'Ольга Иванова', email:'o.ivanova@example.ru', role:'Бизнес-аналитик', aliases:['Ольга','Оля','Ольге','Ольгу']},
+  {name:'Дмитрий Орлов', email:'d.orlov@example.ru', role:'Backend-разработчик', aliases:['Дмитрий','Дима','Дмитрию','Диме']},
+  {name:'Игорь Соколов', email:'i.sokolov@example.ru', role:'Frontend-разработчик', aliases:['Игорь','Игорю']},
+  {name:'Мария Белова', email:'m.belova@example.ru', role:'Тестировщик', aliases:['Мария','Маша','Марии','Маше']},
+];
+const CUSTOMER = {name:'Павел Громов', email:'p.gromov@sev-veter.example', role:'Заказчик, ООО «Северный ветер»', external:true, aliases:['Павел','Павлу','Павла']};
+const pick = (...n) => n.map(i => TEAM[i]);
+
+function demoMeetings(){
+  return [
+  {id:'m1', title:'Еженедельный статус проекта', date:'2026-11-16T10:00', duration:45, set:'dev',
+   participants: pick(0,1,2,3,4),
+   transcript:
+`[00:00:05] Алексей Смирнов: Всем привет, начинаем еженедельный статус по проекту. Пройдёмся по задачам и рискам.
+[00:01:12] Дмитрий Орлов: CRM-101 готова, интеграция с 1С выложена на тестовый стенд.
+[00:02:03] Мария Белова: Я начала тестирование, CRM-102 у меня в работе.
+[00:02:40] Мария Белова: Есть риск, что не успеем прогнать регресс до релиза, тестовый стенд падает два раза в день.
+[00:03:31] Алексей Смирнов: Понял. Дмитрий, проверь логи тестового стенда и найди причину падений до среды.
+[00:03:44] Дмитрий Орлов: Хорошо, займусь сегодня.
+[00:04:20] Игорь Соколов: По интерфейсу: форма заявки почти готова, осталось подключить валидацию.
+[00:05:02] Алексей Смирнов: Игорь, доделай валидацию формы заявки и выложи на стенд к четвергу.
+[00:06:15] Ольга Иванова: У меня вопрос по статусам заявки. Заказчик пока не подтвердил список статусов, вопрос открыт.
+[00:07:01] Алексей Смирнов: Я уточню у Павла список статусов заявки и вернусь к вам до вторника.
+[00:07:30] Ольга Иванова: Тогда я подготовлю описание статусной модели в двух вариантах к пятнице.
+[00:08:12] Алексей Смирнов: Договорились. Решили, что релиз версии 1.2 переносим на 30 ноября.
+[00:08:40] Дмитрий Орлов: Тогда нужно обновить план релиза в трекере.
+[00:08:55] Алексей Смирнов: Да, план релиза я обновлю сам сегодня.
+[00:09:30] Мария Белова: Ещё блокер: нет тестовых учётных записей для личного кабинета.
+[00:10:05] Алексей Смирнов: Дмитрий, заведи три тестовые учётные записи для Марии до завтра.
+[00:10:48] Алексей Смирнов: Следующий статус проведём в понедельник в 10:00, как обычно.
+[00:11:02] Алексей Смирнов: Всем спасибо.`,
+   gold:[
+    {u:1,type:'status'},{u:2,type:'status'},{u:3,type:'risk'},
+    {u:4,type:'task',who:'Дмитрий Орлов',due:'2026-11-18'},
+    {u:7,type:'task',who:'Игорь Соколов',due:'2026-11-19'},
+    {u:8,type:'question'},
+    {u:9,type:'pm',sub:'contact',due:'2026-11-17'},
+    {u:10,type:'task',who:'Ольга Иванова',due:'2026-11-20'},
+    {u:11,type:'decision'},
+    {u:13,type:'pm',sub:'do',due:'2026-11-16'},
+    {u:14,type:'risk'},
+    {u:15,type:'task',who:'Дмитрий Орлов',due:'2026-11-17'},
+    {u:16,type:'meeting',due:'2026-11-23',time:'10:00'}]},
+  {id:'m2', title:'Планирование спринта 14', date:'2026-11-17T14:00', duration:60, set:'dev',
+   participants: pick(0,1,2,3,4),
+   transcript:
+`[00:00:04] Алексей Смирнов: Коллеги, планируем четырнадцатый спринт. Цель спринта: личный кабинет клиента.
+[00:01:20] Ольга Иванова: Требования к личному кабинету готовы, CRM-110 можно закрывать.
+[00:02:45] Алексей Смирнов: Решили: в спринт берём личный кабинет, уведомления переносим в следующий спринт.
+[00:03:30] Дмитрий Орлов: Я возьму API личного кабинета, оценка пять дней, сделаю до 24 ноября.
+[00:04:12] Игорь Соколов: Вёрстку личного кабинета беру на себя, закончу к пятнице следующей недели.
+[00:05:05] Мария Белова: Я подготовлю тест-кейсы по личному кабинету до четверга.
+[00:06:18] Дмитрий Орлов: Есть опасность, что внешний сервис авторизации не даст доступ вовремя, тогда API сдвигается.
+[00:07:02] Алексей Смирнов: Я свяжусь с подрядчиком по авторизации и запрошу тестовый доступ до завтра.
+[00:07:25] Алексей Смирнов: И проконтролирую, чтобы ключи доступа передали Дмитрию в среду.
+[00:08:40] Ольга Иванова: Что делаем с отчётами для бухгалтерии? Пока непонятно, нужны ли они в первой версии.
+[00:09:05] Алексей Смирнов: Отложим этот вопрос до встречи с заказчиком.
+[00:09:50] Игорь Соколов: Нужен дизайн мобильной версии, без него не начну адаптив.
+[00:10:20] Алексей Смирнов: Игорь, запроси у дизайнера макеты мобильной версии сегодня.
+[00:11:35] Алексей Смирнов: Демо спринта назначаем на 1 декабря в 16:00.
+[00:11:58] Алексей Смирнов: Всё, спасибо, расходимся.`,
+   gold:[
+    {u:1,type:'status'},{u:2,type:'decision'},
+    {u:3,type:'task',who:'Дмитрий Орлов',due:'2026-11-24'},
+    {u:4,type:'task',who:'Игорь Соколов',due:'2026-11-27'},
+    {u:5,type:'task',who:'Мария Белова',due:'2026-11-19'},
+    {u:6,type:'risk'},
+    {u:7,type:'pm',sub:'contact',due:'2026-11-18'},
+    {u:8,type:'pm',sub:'control',due:'2026-11-18'},
+    {u:9,type:'question'},
+    {u:12,type:'task',who:'Игорь Соколов',due:'2026-11-17'},
+    {u:13,type:'meeting',due:'2026-12-01',time:'16:00'}]},
+  {id:'m3', title:'Статус с заказчиком ООО «Северный ветер»', date:'2026-11-19T15:00', duration:40, set:'test',
+   participants: [TEAM[0], CUSTOMER, TEAM[1], TEAM[2]],
+   transcript:
+`[00:00:06] Павел Громов: Добрый день. Хотим понять, успеваем ли мы к запуску в декабре.
+[00:00:40] Алексей Смирнов: Добрый день, Павел. Интеграция с 1С завершена, сейчас идёт тестирование личного кабинета.
+[00:02:10] Павел Громов: По статусам заявки: мы утверждаем вариант с пятью статусами, который прислала Ольга.
+[00:02:35] Ольга Иванова: Отлично, тогда я обновлю спецификацию до понедельника.
+[00:03:50] Павел Громов: Нас беспокоит нагрузка: в декабре ожидаем до пяти тысяч заявок в день.
+[00:04:30] Дмитрий Орлов: Нагрузочное тестирование мы не планировали, это риск для запуска.
+[00:05:10] Алексей Смирнов: Дмитрий, подготовь план нагрузочного тестирования к 26 ноября.
+[00:06:20] Павел Громов: И ещё: отчёты для бухгалтерии в первой версии не нужны, переносим их во вторую очередь.
+[00:07:05] Алексей Смирнов: Принято. Мне нужно получить от вас доступы к тестовой базе 1С, напишу вам письмо сегодня.
+[00:07:40] Павел Громов: Хорошо, доступы пришлём в течение двух дней.
+[00:08:02] Алексей Смирнов: Я проконтролирую получение доступов и отпишусь команде в понедельник.
+[00:09:15] Павел Громов: Когда покажете личный кабинет?
+[00:09:31] Алексей Смирнов: Предлагаю демо в среду, 25 ноября, в 11:00.
+[00:09:50] Павел Громов: Подходит, договорились.
+[00:10:30] Ольга Иванова: Павел, пришлите, пожалуйста, контакты вашего бухгалтера для будущих отчётов.
+[00:11:10] Алексей Смирнов: Спасибо, Павел. Итоги пришлём сегодня письмом.`,
+   gold:[
+    {u:2,type:'decision'},
+    {u:3,type:'task',who:'Ольга Иванова',due:'2026-11-23'},
+    {u:4,type:'risk'},{u:5,type:'risk'},
+    {u:6,type:'task',who:'Дмитрий Орлов',due:'2026-11-26'},
+    {u:7,type:'decision'},
+    {u:8,type:'pm',sub:'contact',due:'2026-11-19'},
+    {u:9,type:'pm',sub:'control',due:'2026-11-21'},
+    {u:10,type:'pm',sub:'control',due:'2026-11-23'},
+    {u:12,type:'meeting',due:'2026-11-25',time:'11:00'},
+    {u:14,type:'pm',sub:'control'}]},
+  {id:'m4', title:'Ретроспектива спринта 13', date:'2026-11-20T16:00', duration:50, set:'test',
+   participants: pick(0,1,2,3,4),
+   transcript:
+`[00:00:08] Алексей Смирнов: Начнём ретроспективу. Что прошло хорошо, что мешало.
+[00:01:30] Мария Белова: Мешало то, что сборки на стенд выкатывались без предупреждения.
+[00:02:05] Дмитрий Орлов: Согласен, давайте договоримся: каждый деплой анонсируем в общем чате.
+[00:02:30] Алексей Смирнов: Принимаем это правило с понедельника.
+[00:03:40] Игорь Соколов: Ревью кода затягивается на два-три дня, задачи висят.
+[00:04:15] Алексей Смирнов: Игорь, опиши правила ревью на одну страницу до среды.
+[00:05:20] Ольга Иванова: Мне не хватало обратной связи от заказчика по макетам.
+[00:05:55] Алексей Смирнов: Я договорюсь с Павлом о еженедельном созвоне по макетам.
+[00:06:40] Мария Белова: Предлагаю завести чек-лист приёмки задач.
+[00:07:02] Алексей Смирнов: Мария, заведи чек-лист приёмки в базе знаний к следующему спринту.
+[00:08:10] Дмитрий Орлов: CRM-115 по логированию я закрыл вчера.
+[00:09:00] Алексей Смирнов: Хорошо. Есть риск, что в декабре половина команды уйдёт в отпуска одновременно.
+[00:09:30] Алексей Смирнов: Ольга, собери график отпусков команды до 27 ноября.
+[00:10:05] Алексей Смирнов: Я проверю загрузку команды на декабрь после графика отпусков.
+[00:11:20] Алексей Смирнов: Следующую ретроспективу проведём 4 декабря в 16:00.`,
+   gold:[
+    {u:1,type:'risk'},{u:3,type:'decision'},{u:4,type:'risk'},
+    {u:5,type:'task',who:'Игорь Соколов',due:'2026-11-25'},
+    {u:7,type:'pm',sub:'contact'},
+    {u:9,type:'task',who:'Мария Белова'},
+    {u:10,type:'status'},{u:11,type:'risk'},
+    {u:12,type:'task',who:'Ольга Иванова',due:'2026-11-27'},
+    {u:13,type:'pm',sub:'control'},
+    {u:14,type:'meeting',due:'2026-12-04',time:'16:00'}]},
+  ];
+}
+
+function demoTracker(){
+  const mk = (key, summary, who, status, due) => ({key, summary, assignee: who, status, due, source:null});
+  return {seq:120, issues:[
+    mk('CRM-101','Интеграция с 1С: обмен заявками','Дмитрий Орлов','В работе','2026-11-14'),
+    mk('CRM-102','Тестирование интеграции с 1С','Мария Белова','К выполнению','2026-11-20'),
+    mk('CRM-110','Требования к личному кабинету','Ольга Иванова','В работе','2026-11-17'),
+    mk('CRM-115','Логирование запросов к API','Дмитрий Орлов','В работе','2026-11-20'),
+  ]};
+}
+function demoBusy(){
+  return [
+    {email:'i.sokolov@example.ru', start:'2026-12-01T16:00', end:'2026-12-01T17:00', title:'Занят (личный календарь)'},
+    {email:'o.ivanova@example.ru', start:'2026-11-25T11:00', end:'2026-11-25T11:30', title:'Занята'},
+  ];
+}
+function defaultState(){
+  return {
+    settings:{project:'CRM', tracker:'jira', jiraSite:'company.atlassian.net', pmEmail:'a.smirnov@example.ru',
+      pmToTracker:false, autoControl:true, workStart:10, workEnd:19, minutesSaved:35,
+      transitions:{'В работе':'21','Готово':'31','На проверке':'41'},
+      llm:{enabled:false, baseUrl:'https://llm.api.cloud.yandex.net/v1', apiKey:'', folder:'', model:'gpt://<folder_id>/yandexgpt/latest'}},
+    meetings: demoMeetings(), runs:{}, tracker: demoTracker(), outbox:[], calendar:[], busy: demoBusy(),
+    todos:[], journal:[], requests:[]
+  };
+}
+
+/* ---------------------------- хранение ---------------------------- */
+let S;
+function load(){
+  try { const raw = localStorage.getItem(STORE_KEY); S = raw ? JSON.parse(raw) : defaultState(); }
+  catch(e){ S = defaultState(); }
+  if(!S.settings) S = defaultState();
+}
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch(e){} }
+function resetDemo(){ S = defaultState(); save(); toast('Демонстрационные данные восстановлены'); go('dashboard'); }
+
+/* ---------------------------- утилиты ---------------------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseDay = s => { const [y,m,d] = s.slice(0,10).split('-').map(Number); return new Date(y, m-1, d); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const ruDate = s => { if(!s) return 'не указан'; const d = parseDay(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+const toRu = s => s ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : '';
+const fromRu = v => { const m = String(v).trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); return m ? `${m[3]}-${pad(+m[2])}-${pad(+m[1])}` : ''; };
+const ruDateFull = s => { const d = parseDay(s); return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`; };
+const nowStamp = () => { const d = new Date(); return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const uid = p => p + Math.random().toString(36).slice(2,8);
+let toastT;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2200); }
+function journal(agent, msg, meetingId){ S.journal.unshift({ts: nowStamp(), agent, msg, meetingId: meetingId||null}); if(S.journal.length>500) S.journal.length = 500; }
+function person(name, m){ return (m?.participants||[]).find(p=>p.name===name) || TEAM.find(p=>p.name===name) || (CUSTOMER.name===name?CUSTOMER:null); }
+function pmOf(m){ return (m.participants||[]).find(p=>p.email===S.settings.pmEmail) || TEAM[0]; }
+function download(name, content, mime){
+  const blob = new Blob([content], {type: mime||'text/plain;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 500);
+}
+
+/* =====================================================================
+   1. АГЕНТ РАСПОЗНАВАНИЯ: разбор расшифровки и сопоставление спикеров
+   Формат строки: [чч:мм:сс] Имя Фамилия: реплика
+   ===================================================================== */
+const LINE_RE = /^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([^:]{2,60}):\s*(.+)$/;
+function recognize(meeting){
+  const utt = [], errors = [];
+  meeting.transcript.split(/\r?\n/).forEach((line, n) => {
+    if(!line.trim()) return;
+    const m = line.trim().match(LINE_RE);
+    if(!m){ errors.push(n+1); return; }
+    const raw = m[2].trim();
+    const p = meeting.participants.find(x => x.name === raw) ||
+              meeting.participants.find(x => x.name.split(' ')[0] === raw.split(' ')[0]);
+    utt.push({u: utt.length, t: m[1].length===5 ? '00:'+m[1] : m[1].padStart(8,'0'), speaker: p ? p.name : raw, known: !!p, text: m[3].trim()});
+  });
+  return {utt, errors};
+}
+
+/* =====================================================================
+   2. АГЕНТ-АНАЛИТИК: смысловой разбор (локальный режим, правила)
+   ===================================================================== */
+const WD_FORMS = [
+  [1,'понедельник|понедельника|понедельнику'],[2,'вторник|вторника|вторнику'],[3,'среда|среду|среды|среде'],
+  [4,'четверг|четверга|четвергу'],[5,'пятница|пятницу|пятницы|пятнице'],[6,'суббота|субботу|субботы'],[0,'воскресенье|воскресенья']];
+const NUM_WORDS = {'одного':1,'один':1,'одну':1,'двух':2,'два':2,'две':2,'трёх':3,'трех':3,'три':3,'четырёх':4,'четырех':4,'пяти':5,'пять':5,'семи':7,'десяти':10};
+
+function parseDue(text, base){
+  const s = text.toLowerCase();
+  let m;
+  if(/послезавтра/.test(s)) return iso(addDays(base,2));
+  if(/(^|\s)завтра/.test(s)) return iso(addDays(base,1));
+  if(/(^|\s)сегодня/.test(s)) return iso(base);
+  if((m = s.match(/(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/))){
+    const mon = MONTHS.indexOf(m[2]); let y = base.getFullYear(); const d = new Date(y, mon, +m[1]);
+    if(d < addDays(base,-60)) d.setFullYear(y+1);
+    return iso(d);
+  }
+  if((m = s.match(/(?:^|\s)(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?!\d)/))){
+    const y = m[3] ? (m[3].length===2 ? 2000+ +m[3] : +m[3]) : base.getFullYear();
+    return iso(new Date(y, +m[2]-1, +m[1]));
+  }
+  if((m = s.match(/(?:в течение|через)\s+(\d+|одного|двух|трёх|трех|пяти|семи|десяти)\s+(дн|день|дня|рабоч)/))){
+    const n = /\d/.test(m[1]) ? +m[1] : NUM_WORDS[m[1]]; return iso(addDays(base,n));
+  }
+  if(/через неделю/.test(s)) return iso(addDays(base,7));
+  if(/(до|к) конц[а-яё]* недели/.test(s)){ const off = (5 - base.getDay() + 7) % 7; return iso(addDays(base, off)); }
+  for(const [wd, forms] of WD_FORMS){
+    const re = new RegExp('(?:^|[\\s,])(?:до|к|ко|в|во|на|с|со)?\\s*(следующ[а-яё]+\\s+)?(' + forms + ')(?![а-яё])(\\s+следующей недели)?');
+    if((m = s.match(re))){
+      if(m[1] || m[3]){
+        const toMon = (8 - base.getDay()) % 7 || 7;            // понедельник следующей недели
+        return iso(addDays(base, toMon + (wd + 6) % 7));
+      }
+      let off = (wd - base.getDay() + 7) % 7; if(off===0) off = 7;
+      return iso(addDays(base, off));
+    }
+  }
+  return null;
+}
+function parseTime(text){
+  const m = text.match(/(?:в|на|к)\s+(\d{1,2})[:.](\d{2})/) || text.match(/(\d{1,2}):(\d{2})/);
+  return m ? `${pad(+m[1])}:${m[2]}` : null;
+}
+
+const RX = {
+  key: /\b([A-Z]{2,10}-\d{1,5})\b/,
+  statusDone: /(готов|сделан|закрыл|закрыт|выполнен|можно закрывать)/i,
+  statusWork: /(в работе|взял[аи]? в работу|начал[аи]?)/i,
+  statusReview: /(на ревью|на проверке|на тестировани|отдал[аи]? в тест)/i,
+  meetingWord: /(созвон|встреч|синк|статус|демо|планировани|ретроспектив|ретро(?![а-яё]))/i,
+  meetingVerb: /(проведём|проведем|созвонимся|встретимся|назначаем|назначим|предлагаю|перенос|перенес|следующ)/i,
+  decision: /(решили|договорились|принято решение|принимаем|утверждаем|фиксируем|остановились на|выбираем|согласовали|оставляем|переносим)/i,
+  risk: /(риск|не успе[вюе]|блокер|блокиру|под угрозой|задерж|сдвига|сорв|опасност|беспоко)/i,
+  question: /(открыт[а-яё]* вопрос|вопрос открыт|пока непонятно|пока неясно|пока не ясно|не решили|отложим|вернёмся к|вернемся к)/i,
+  firstPerson: /(?:^|[\s,.:;—-])(?:я\s+)?(беру на себя|возьму|сделаю|подготовлю|займусь|проверю|напишу|обновлю|соберу|оценю|настрою|исправлю|допишу|подниму|разверну|выгружу|пришлю|отправлю|подключу|протестирую|прогоню|распишу|опишу|заведу|свяжусь|уточню|договорюсь|проведу|согласую|позвоню|узнаю|запрошу|проконтролирую|прослежу|посмотрю|доделаю|закончу|созвонюсь|отпишусь)(?![а-яё])/i,
+  firstPlural: /(?:^|\s)(пришлём|пришлем|отправим|подготовим|сделаем|дадим|передадим|предоставим|согласуем)(?![а-яё])/i,
+  needMe: /(мне нужно|мне надо|на мне)/i,
+  pmContact: /(уточн|напиш|свяж|позвон|запрос|узна|договор|согласу|созвон|пришл|отправ|получить от|отпиш)/i,
+  pmControl: /(контрол|провер|прослед|убед)/i,
+  imperative: /^(\S+?(?:й|йте|и|ите|ь|ьте))(?![а-яё])/i,
+  thirdPerson: /^(?:у нас\s+|тогда\s+|же\s+)?(\S+?(?:ит|ет|ёт|ется|ётся|ится|ут|ют|ат|ят))(?![а-яё])/i,
+};
+const IMPER_STOP = new Set(['привет','спасибо','пожалуйста','хорошо','понятно','кстати','давай','давайте','смотри','слушай','скажи','подожди','извини','прости','добрый','отлично','согласен','ладно','супер']);
+
+function findAddressee(sentence, m){
+  // «Имя, сделай…» (обращение) или «Имя подготовит…» (третье лицо)
+  for(const p of m.participants){
+    for(const a of [p.name, ...(p.aliases||[])]){
+      const mm = sentence.match(new RegExp('(?:^|[\\s,.:;])' + a + '(?![а-яё])(\\s*,)?\\s*(.*)$', 'i'));
+      if(!mm) continue;
+      const rest = mm[2].trim().replace(/^пожалуйста,?\s*/i,'');
+      if(mm[1]){
+        const imp = rest.match(RX.imperative);
+        if(imp && !IMPER_STOP.has(imp[1].toLowerCase())) return {person:p, mode:'imp'};
+      } else {
+        const tp = rest.match(RX.thirdPerson);
+        if(tp) return {person:p, mode:'third'};
+      }
+    }
+  }
+  return null;
+}
+const INF = {подготовлю:'подготовить',подготовь:'подготовить',обновлю:'обновить',обнови:'обновить',сделаю:'сделать',сделай:'сделать',
+  возьму:'взять',возьми:'взять',проверю:'проверить',проверь:'проверить',напишу:'написать',напиши:'написать',соберу:'собрать',собери:'собрать',
+  оценю:'оценить',оцени:'оценить',настрою:'настроить',настрой:'настроить',исправлю:'исправить',исправь:'исправить',допишу:'дописать',
+  доделаю:'доделать',доделай:'доделать',заведу:'завести',заведи:'завести',опишу:'описать',опиши:'описать',запрошу:'запросить',запроси:'запросить',
+  уточню:'уточнить',уточни:'уточнить',свяжусь:'связаться',свяжись:'связаться',договорюсь:'договориться',договорись:'договориться',
+  проконтролирую:'проконтролировать',займусь:'заняться',выложи:'выложить',выложу:'выложить',найди:'найти',найду:'найти',пришлите:'прислать',
+  пришли:'прислать',пришлю:'прислать',отправлю:'отправить',отправь:'отправить',вернусь:'вернуться',отпишусь:'отписаться',закончу:'закончить',
+  подключи:'подключить',подключу:'подключить',протестирую:'протестировать',протестируй:'протестировать',позвоню:'позвонить',узнаю:'узнать',
+  согласую:'согласовать',посмотрю:'посмотреть',посмотри:'посмотреть',подготовьте:'подготовить',сделайте:'сделать',проведу:'провести'};
+const INF_VALUES = new Set(Object.values(INF));
+function toInfinitive(t){
+  t = t.replace(/[А-Яа-яЁё]+/g, w => { const r = INF[w.toLowerCase()]; return r ? (w[0] === w[0].toUpperCase() ? r[0].toUpperCase() + r.slice(1) : r) : w; });
+  t = t.replace(/,\s*оценк[а-яё]*[^,]*/i, '');
+  const last = t.match(/,\s*([а-яё]+)$/i); if(last && INF_VALUES.has(last[1].toLowerCase())) t = t.slice(0, last.index);
+  return t;
+}
+function cleanTitle(s, addressee){
+  let t = s;
+  if(addressee){ for(const a of [addressee.name, ...(addressee.aliases||[])]) t = t.replace(new RegExp('^\\s*' + a + '\\s*,?\\s*','i'),''); }
+  const bs = t.match(/^(.*?)\s+беру на себя/i); if(bs) t = 'Сделать ' + bs[1].replace(/^./, c => c.toLowerCase());
+  t = t.replace(/^(отлично,\s*|хорошо,\s*|да,\s*|ок,\s*|и\s+)?тогда\s+/i,'');
+  const inv = t.match(/^(?:да,\s*|хорошо,\s*)?(.+?)\s+я\s+([а-яё]+)(?:\s+сама?)?\s*(.*)$/i);
+  if(inv && INF[inv[2].toLowerCase()]) t = INF[inv[2].toLowerCase()] + ' ' + inv[1].replace(/^./, c => c.toLowerCase()) + (inv[3] ? ' ' + inv[3] : '');
+  t = t.replace(/^(отлично,\s*|хорошо,\s*|да,\s*|ок,\s*|и\s+)?(тогда\s+)?(я\s+)?/i,'')
+       .replace(/^мне нужно\s+/i,'')
+       .replace(/,?\s*(пожалуйста)\s*,?/i,' ')
+       .replace(/\s+(до|к|ко)\s+(\d{1,2}\s+\S+|понедельник\S*|вторник\S*|сред\S+|четверг\S*|пятниц\S+|суббот\S+|завтра|сегодня|конца недели)(\s+следующей недели)?/i,'')
+       .replace(/\s+(сегодня|завтра|послезавтра)\b/i,'')
+       .replace(/\s+/g,' ').trim().replace(/[.,;!]+$/,'');
+  t = toInfinitive(t).trim().replace(/[.,;!]+$/,'');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function analyzeLocal(meeting, utt){
+  const base = parseDay(meeting.date);
+  const pm = pmOf(meeting);
+  const items = [];
+  const push = it => { if(!items.some(x => x.u===it.u && x.type===it.type)) items.push(it); };
+  for(const x of utt){
+    const speaker = person(x.speaker, meeting) || {name:x.speaker};
+    const sentences = x.text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    for(const sRaw of sentences){
+      const s = sRaw.trim();
+      const src = {u:x.u, t:x.t, speaker:x.speaker, quote:x.text};
+      const due = parseDue(s, base);
+      // статус существующей задачи
+      const key = s.match(RX.key);
+      if(key){
+        const to = RX.statusReview.test(s) ? 'На проверке' : RX.statusDone.test(s) ? 'Готово' : RX.statusWork.test(s) ? 'В работе' : null;
+        if(to){ push({...src, type:'status', key:key[1], to, text:`${key[1]}: статус «${to}»`}); continue; }
+      }
+      // встреча (следующая / перенос)
+      const time = parseTime(s);
+      if(RX.meetingWord.test(s) && (due || time) && RX.meetingVerb.test(s)){
+        let d = due || iso(addDays(base,7));
+        push({...src, type:'meeting', due:d, time: time || meeting.date.slice(11,16), text: s.replace(/[.]$/,'')}); continue;
+      }
+      // действия: адресат, первое лицо, внешний участник
+      const addr = findAddressee(s, meeting);
+      let actor = null, how = null;
+      if(addr && addr.person.name !== speaker.name){ actor = addr.person; how = addr.mode; }
+      else if(RX.firstPerson.test(s) || (RX.needMe.test(s) && speaker.email===pm.email)){ actor = speaker; how = 'self'; }
+      else if(speaker.external && RX.firstPlural.test(s)){ actor = speaker; how = 'self'; }
+      if(actor && actor.name){
+        const p = person(actor.name, meeting) || actor;
+        if(p.email === pm.email){
+          const sub = RX.pmControl.test(s) ? 'control' : RX.pmContact.test(s) ? 'contact' : 'do';
+          push({...src, type:'pm', sub, due, text: cleanTitle(s, p)}); continue;
+        }
+        if(p.external){
+          const what = cleanTitle(s, p).replace(/^(хорошо,?\s*)/i,'').replace(/^./, c=>c.toLowerCase());
+          push({...src, type:'pm', sub:'control', due, text: `Проконтролировать ${how==='self' ? 'обещание' : 'выполнение'} (${p.name}): ${what}`}); continue;
+        }
+        push({...src, type:'task', who:p.name, due, text: cleanTitle(s, p)}); continue;
+      }
+      if(RX.question.test(s)){ push({...src, type:'question', text:s.replace(/[.]$/,'')}); continue; }
+      if(RX.risk.test(s)){ push({...src, type:'risk', text:s.replace(/[.]$/,'')}); continue; }
+      if(RX.decision.test(s) && s.split(/\s+/).length > 2){ push({...src, type:'decision', text:s.replace(/^(договорились|принято)[.!]?\s*/i,'').replace(/[.]$/,'')}); continue; }
+    }
+  }
+  // задача и риск в одной реплике: оставляем обе; убираем решение, если в той же реплике есть встреча
+  return items.filter(it => !(it.type==='decision' && items.some(o => o.u===it.u && o.type==='meeting')));
+}
+
+/* ---------- режим языковой модели (OpenAI-совместимый API, напр. YandexGPT) ---------- */
+const LLM_SCHEMA_HINT = `Верни JSON {"items":[{"u":номер_реплики,"type":"task|pm|decision|risk|question|meeting|status","sub":"contact|control|do (только для pm)","who":"ФИО исполнителя (для task)","due":"ГГГГ-ММ-ДД или null","time":"ЧЧ:ММ или null","key":"ключ задачи для status","to":"новый статус для status","text":"краткая формулировка"}]}`;
+async function analyzeLLM(meeting, utt){
+  const L = S.settings.llm, pm = pmOf(meeting);
+  const sys = `Ты агент-аналитик рабочих встреч. Дата встречи: ${meeting.date.slice(0,10)}. Руководитель проекта: ${pm.name}. ` +
+    `Участники: ${meeting.participants.map(p=>p.name + (p.external?' (внешний)':'')).join(', ')}. ` +
+    `Выдели решения, задачи (исполнитель и срок), действия руководителя (связаться/проконтролировать/сделать), риски, открытые вопросы, договорённости о следующей встрече, изменения статусов задач по ключу. ` +
+    `Поручения и обещания внешних участников оформляй как pm с sub=control. ` + LLM_SCHEMA_HINT;
+  const user = utt.map(x => `${x.u}. [${x.t}] ${x.speaker}: ${x.text}`).join('\n');
+  const headers = {'Content-Type':'application/json','Authorization':'Bearer ' + L.apiKey};
+  if(L.folder) headers['OpenAI-Project'] = L.folder;
+  const r = await fetch(L.baseUrl.replace(/\/$/,'') + '/chat/completions', {method:'POST', headers,
+    body: JSON.stringify({model:L.model, temperature:0, response_format:{type:'json_object'},
+      messages:[{role:'system',content:sys},{role:'user',content:user}]})});
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  const content = data.choices?.[0]?.message?.content || '{}';
+  const parsed = JSON.parse(content.replace(/^```json\s*|```$/g,''));
+  return (parsed.items||[]).filter(it => utt[it.u]).map(it => ({...it, t:utt[it.u].t, speaker:utt[it.u].speaker, quote:utt[it.u].text, due: it.due || null}));
+}
+
+/* =====================================================================
+   3-6. ИСПОЛНИТЕЛЬНЫЕ АГЕНТЫ: готовят операции, ничего не выполняя
+   ===================================================================== */
+function confidence(it){
+  if(it.type==='task') return it.who && it.due ? 'high' : (it.who || it.due) ? 'medium' : 'low';
+  if(it.type==='pm') return it.due ? 'high' : 'medium';
+  if(it.type==='status') return S.tracker.issues.some(i=>i.key===it.key) ? 'high' : 'low';
+  return 'high';
+}
+function agentTracker(m, items){
+  const ops = [];
+  for(const it of items){
+    if(it.type==='task') ops.push({id:uid('op'), agent:'tracker', kind:'create_issue', summary:it.text, who:it.who, due:it.due||'', src:it, conf:confidence(it)});
+    if(it.type==='status') ops.push({id:uid('op'), agent:'tracker', kind:'transition', key:it.key, to:it.to, src:it, conf:confidence(it),
+      flag: S.tracker.issues.some(i=>i.key===it.key) ? '' : 'Задача с таким ключом не найдена в трекере'});
+  }
+  return ops;
+}
+function agentMail(m, items){
+  return [{id:uid('op'), agent:'mail', kind:'send_mail', to: m.participants.map(p=>p.email), subject:`Итоги встречи «${m.title}» от ${ruDateFull(m.date)}`, body: buildMinutes(m, items), conf:'high', src:null}];
+}
+function slotFree(dateIso, time, dur, emails){
+  const st = new Date(dateIso + 'T' + time), en = new Date(st.getTime() + dur*60000);
+  const busy = [...S.busy, ...S.calendar.flatMap(e => e.attendees.map(a => ({email:a, start:e.start, end:e.end})))];
+  return !busy.some(b => emails.includes(b.email) && new Date(b.start) < en && new Date(b.end) > st);
+}
+function agentCalendar(m, items){
+  const ops = [];
+  for(const it of items.filter(i=>i.type==='meeting')){
+    const emails = m.participants.map(p=>p.email);
+    let time = it.time, note = '';
+    if(!slotFree(it.due, time, m.duration, emails)){
+      const req = +time.slice(0,2), last = S.settings.workEnd - Math.ceil(m.duration/60);
+      const hours = []; for(let h = req+1; h <= last; h++) hours.push(h); for(let h = S.settings.workStart; h < req; h++) hours.push(h);
+      let found = null;
+      for(const h of hours){ const t = pad(h)+':00'; if(slotFree(it.due, t, m.duration, emails)){ found = t; break; } }
+      note = found ? `Время ${time} занято у части участников, предложено ${found}` : `Свободного времени ${ruDate(it.due)} не найдено`;
+      if(found) time = found;
+    }
+    const title = /демо/i.test(it.text) ? `Демо: ${m.title}` : /следующ/i.test(it.text) ? m.title : `${m.title}: продолжение`;
+    ops.push({id:uid('op'), agent:'calendar', kind:'create_event', title,
+      date:it.due, time, duration:m.duration, attendees:emails, src:it, conf: note ? 'medium':'high', flag:note});
+  }
+  return ops;
+}
+function agentPM(m, items){
+  const ops = [];
+  for(const it of items.filter(i=>i.type==='pm'))
+    ops.push({id:uid('op'), agent:'pm', kind:'todo', text:it.text, sub:it.sub, due:it.due||'', src:it, conf:confidence(it)});
+  if(S.settings.autoControl)
+    for(const it of items.filter(i=>i.type==='task' && i.who && i.due))
+      ops.push({id:uid('op'), agent:'pm', kind:'todo', text:`Проконтролировать: ${it.text.replace(/^./,c=>c.toLowerCase())} (${it.who})`, sub:'control', due:it.due, src:it, conf:'high', derived:true, parentU:it.u});
+  for(const it of items.filter(i=>i.type==='risk'))
+    ops.push({id:uid('op'), agent:'pm', kind:'todo', text:`Оценить риск и меры: ${it.text.replace(/^./,c=>c.toLowerCase())}`, sub:'do', due:'', src:it, conf:'medium', derived:true});
+  return ops;
+}
+function buildMinutes(m, items){
+  const by = t => items.filter(i=>i.type===t);
+  const L = [];
+  L.push(`Коллеги, добрый день!`, ``, `Итоги встречи «${m.title}» (${ruDateFull(m.date)}, Яндекс Телемост).`, `Участники: ${m.participants.map(p=>p.name).join(', ')}.`, ``);
+  const sec = (h, arr, f) => { if(arr.length){ L.push(h); arr.forEach((x,i)=>L.push(`${i+1}. ${f(x)}`)); L.push(''); } };
+  sec('Решения:', by('decision'), x => x.text);
+  sec('Задачи:', by('task'), x => `${x.text}. Исполнитель: ${x.who||'не назначен'}, срок: ${x.due?ruDate(x.due):'не указан'}`);
+  sec('Изменения статусов:', by('status'), x => x.text);
+  sec('Риски:', by('risk'), x => x.text);
+  sec('Открытые вопросы:', by('question'), x => x.text);
+  sec('Следующая встреча:', by('meeting'), x => `${ruDate(x.due)}, ${x.time}`);
+  L.push('Задачи заведены в трекер. Если что-то записано неверно, ответьте на это письмо.', '', pmOf(m).name, 'Руководитель проекта');
+  return L.join('\n');
+}
+
+/* =====================================================================
+   7. АГЕНТ-КОНТРОЛЁР и конвейер
+   ===================================================================== */
+const STEP_NAME = {rec:'Распознавание', analyst:'Аналитик', tracker:'Трекер', mail:'Почта', calendar:'Календарь', pm:'Руководитель', ctrl:'Контролёр'};
+const AGENTS = [
+  {id:'rec', name:'Агент распознавания', color:'#7a8699'},
+  {id:'analyst', name:'Агент-аналитик', color:'#2f5bea'},
+  {id:'tracker', name:'Агент трекера', color:'#0c6b78'},
+  {id:'mail', name:'Агент почты', color:'#c77700'},
+  {id:'calendar', name:'Агент календаря', color:'#1f9d55'},
+  {id:'pm', name:'Агент руководителя', color:'#5b2bb5'},
+  {id:'ctrl', name:'Агент-контролёр', color:'#c62828'},
+];
+const agentName = id => (AGENTS.find(a=>a.id===id)||{name:id}).name;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function runPipeline(mid, opts={}){
+  const m = S.meetings.find(x=>x.id===mid); if(!m) return;
+  const delay = opts.fast ? 0 : 260;
+  const log = (cls, msg) => { const el = $('#log'); if(el){ el.insertAdjacentHTML('beforeend', `<div class="${cls}">${esc(msg)}</div>`); el.scrollTop = el.scrollHeight; } };
+  const step = (i, st) => { const el = document.querySelectorAll('.step')[i]; if(el){ el.classList.remove('run','done'); if(st) el.classList.add(st); } };
+  const t0 = performance.now();
+  step(0,'run'); log('a', `${agentName('rec')}: загрузка расшифровки встречи «${m.title}»`); await sleep(delay);
+  const {utt, errors} = recognize(m);
+  log('', `Реплик: ${utt.length}, спикеров: ${new Set(utt.map(x=>x.speaker)).size}` + (errors.length ? `, нераспознанных строк: ${errors.length}` : ''));
+  utt.filter(x=>!x.known).slice(0,3).forEach(x => log('w', `Внимание: спикер «${x.speaker}» не найден среди приглашённых`));
+  journal('Агент распознавания', `Разобрано ${utt.length} реплик`, mid); step(0,'done');
+
+  step(1,'run'); log('a', `${agentName('analyst')}: смысловой разбор (${S.settings.llm.enabled ? 'языковая модель' : 'локальные правила'})`); await sleep(delay);
+  let items, mode = 'rules';
+  if(S.settings.llm.enabled){
+    try { items = await analyzeLLM(m, utt); mode = 'llm'; }
+    catch(e){ log('w', `Языковая модель недоступна (${e.message}), переключение на локальные правила`); journal('Агент-аналитик', 'Ошибка обращения к модели: ' + e.message, mid); items = analyzeLocal(m, utt); }
+  } else items = analyzeLocal(m, utt);
+  const cnt = t => items.filter(i=>i.type===t).length;
+  log('', `Решений: ${cnt('decision')}, задач: ${cnt('task')}, действий руководителя: ${cnt('pm')}, рисков: ${cnt('risk')}, вопросов: ${cnt('question')}, встреч: ${cnt('meeting')}, статусов: ${cnt('status')}`);
+  journal('Агент-аналитик', `Сформирован протокол: ${items.length} пунктов (${mode==='llm'?'модель':'правила'})`, mid); step(1,'done');
+
+  const ops = [];
+  const exec = [[2,'tracker',agentTracker],[3,'mail',agentMail],[4,'calendar',agentCalendar],[5,'pm',agentPM]];
+  for(const [i, id, fn] of exec){
+    step(i,'run'); log('a', agentName(id)); await sleep(delay);
+    const o = fn(m, items); ops.push(...o);
+    log('', `Подготовлено операций: ${o.length}`); o.filter(x=>x.flag).forEach(x=>log('w', x.flag));
+    journal(agentName(id), `Подготовлено операций: ${o.length}`, mid); step(i,'done');
+  }
+  step(6,'run'); log('a', `${agentName('ctrl')}: сводный отчёт для руководителя`); await sleep(delay);
+  ops.forEach(o => { o.approved = o.conf !== 'low'; o.status = 'pending'; });
+  const flagged = ops.filter(o=>o.conf!=='high').length;
+  log('d', `Готово за ${((performance.now()-t0)/1000).toFixed(1)} с. Операций на подтверждение: ${ops.length}, требуют внимания: ${flagged}`);
+  journal('Агент-контролёр', `Отчёт: ${ops.length} операций, требуют внимания ${flagged}`, mid); step(6,'done');
+  S.runs[mid] = {meetingId:mid, items, ops, mode, createdAt:nowStamp(), status:'awaiting'};
+  save(); renderNav();
+  
+  return S.runs[mid];
+}
+
+/* ---------- выполнение подтверждённых операций (коннекторы) ---------- */
+function adf(text){ return {type:'doc', version:1, content:[{type:'paragraph', content:[{type:'text', text}]}]}; }
+function apiRequest(op, m){
+  const st = S.settings;
+  if(op.kind==='create_issue' || op.kind==='create_issue_pm'){
+    const p = person(op.who, m) || {email:''};
+    const desc = `Из встречи «${m.title}» (${ruDateFull(m.date)}), ${op.src ? op.src.t + ', ' + op.src.speaker + ': «' + op.src.quote + '»' : ''}`;
+    if(st.tracker==='jira') return {method:'POST', url:`https://${st.jiraSite}/rest/api/3/issue`,
+      body:{fields:{project:{key:st.project}, issuetype:{name:'Task'}, summary:op.summary, description:adf(desc), duedate:op.due||undefined, assignee:{emailAddress:p.email}}}};
+    return {method:'POST', url:'https://api.tracker.yandex.net/v2/issues/', body:{queue:st.project, summary:op.summary, description:desc, assignee:p.email.split('@')[0], deadline:op.due||undefined}};
+  }
+  if(op.kind==='transition'){
+    if(st.tracker==='jira') return {method:'POST', url:`https://${st.jiraSite}/rest/api/3/issue/${op.key}/transitions`, body:{transition:{id: st.transitions[op.to]||'?'}}};
+    return {method:'POST', url:`https://api.tracker.yandex.net/v2/issues/${op.key}/transitions/<id>/_execute`, body:{comment:'Статус изменён по итогам встречи'}};
+  }
+  if(op.kind==='create_event') return {method:'POST', url:'https://cloud-api.yandex.net/v1/telemost-api/conferences',
+    body:{waiting_room_level:'ORGANIZATION', is_auto_summarization_enabled:true, cohosts:[{email:st.pmEmail}]}};
+  if(op.kind==='send_mail') return {method:'SMTP', url:'smtp.yandex.ru:465', body:{to:op.to, subject:op.subject}};
+  return null;
+}
+function applyRun(mid){
+  const run = S.runs[mid], m = S.meetings.find(x=>x.id===mid); if(!run) return;
+  let done = 0;
+  for(const op of run.ops){
+    if(op.status !== 'pending') continue;
+    const parent = op.parentU !== undefined ? run.ops.find(o => o.kind==='create_issue' && o.src && o.src.u===op.parentU) : null;
+    if(!op.approved || (parent && !parent.approved)){ op.status = 'rejected'; journal('Руководитель', `Отклонено: ${opTitle(op)}`, mid); continue; }
+    const req = apiRequest(op, m); if(req) S.requests.unshift({ts:nowStamp(), meetingId:mid, ...req});
+    if(op.kind==='create_issue'){
+      const key = `${S.settings.project}-${++S.tracker.seq}`;
+      S.tracker.issues.push({key, summary:op.summary, assignee:op.who, status:'К выполнению', due:op.due, source:{meeting:m.title, t:op.src.t, quote:op.src.quote}});
+      op.result = key;
+    }
+    if(op.kind==='transition'){ const is = S.tracker.issues.find(i=>i.key===op.key); if(is){ is.status = op.to; op.result = op.to; } else op.result = 'не найдена'; }
+    if(op.kind==='send_mail'){ S.outbox.unshift({id:uid('mail'), meetingId:mid, to:op.to, subject:op.subject, body:op.body, ts:nowStamp()}); }
+    if(op.kind==='create_event'){
+      const code = String(Math.abs([...op.title+op.date].reduce((a,c)=>(a*31+c.charCodeAt(0))|0, 7))).padStart(10,'0').slice(0,10);
+      const start = `${op.date}T${op.time}`, end = new Date(new Date(start).getTime()+op.duration*60000);
+      S.calendar.push({id:uid('ev'), meetingId:mid, title:op.title, start, end:`${iso(end)}T${pad(end.getHours())}:${pad(end.getMinutes())}`, attendees:op.attendees, join:`https://telemost.yandex.ru/j/${code}`});
+    }
+    if(op.kind==='todo'){
+      S.todos.unshift({id:uid('td'), meetingId:mid, meeting:m.title, text:op.text, sub:op.sub, due:op.due, done:false, src:op.src ? {t:op.src.t, speaker:op.src.speaker, quote:op.src.quote} : null, derived:!!op.derived});
+      if(S.settings.pmToTracker && !op.derived){
+        const key = `${S.settings.project}-${++S.tracker.seq}`, pm = pmOf(m);
+        S.tracker.issues.push({key, summary:op.text, assignee:pm.name, status:'К выполнению', due:op.due, source:{meeting:m.title, t:op.src?.t, quote:op.src?.quote}});
+        S.requests.unshift({ts:nowStamp(), meetingId:mid, ...apiRequest({...op, kind:'create_issue_pm', summary:op.text, who:pm.name}, m)});
+      }
+    }
+    op.status = 'done'; done++;
+    journal(agentName(op.agent), `Выполнено: ${opTitle(op)}${op.result ? ', результат: ' + op.result : ''}`, mid);
+  }
+  run.status = 'done'; run.appliedAt = nowStamp();
+  journal('Руководитель', `Подтверждено операций: ${done}`, mid);
+  save(); renderNav(); toast(`Выполнено операций: ${done}`);
+  return done;
+}
+function opTitle(op){
+  return {create_issue:`создать задачу «${op.summary}» (${op.who||'исполнитель не назначен'})`, transition:`${op.key}: статус «${op.to}»`, send_mail:`письмо «${op.subject}»`,
+          create_event:`встреча ${ruDate(op.date)} ${op.time}`, todo:`to-do: ${op.text}`}[op.kind] || op.kind;
+}
+
+/* ---------- файлы для внешних систем ---------- */
+function icsFor(ev){
+  const dt = s => s.replace(/[-:]/g,'') + '00';
+  const e = t => String(t).replace(/\\/g,'\\\\').replace(/,/g,'\\,').replace(/;/g,'\\;').replace(/\n/g,'\\n');
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MeetFlow//RU','CALSCALE:GREGORIAN','METHOD:REQUEST','BEGIN:VEVENT',
+    `UID:${ev.id}@meetflow`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
+    `DTSTART;TZID=Europe/Moscow:${dt(ev.start)}`, `DTEND;TZID=Europe/Moscow:${dt(ev.end)}`,
+    `SUMMARY:${e(ev.title)}`, `LOCATION:${e(ev.join)}`, `DESCRIPTION:${e('Видеовстреча в Яндекс Телемосте: ' + ev.join)}`,
+    `ORGANIZER:mailto:${S.settings.pmEmail}`, ...ev.attendees.map(a=>`ATTENDEE;ROLE=REQ-PARTICIPANT:mailto:${a}`),
+    'END:VEVENT','END:VCALENDAR'].join('\r\n') + '\r\n';
+}
+function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
+function emlFor(mail){
+  return [`From: ${S.settings.pmEmail}`, `To: ${mail.to.join(', ')}`, `Subject: =?UTF-8?B?${b64(mail.subject)}?=`, `Date: ${new Date().toUTCString()}`,
+    'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','', b64(mail.body).replace(/.{76}/g,'$&\r\n')].join('\r\n');
+}
+function csvFor(issues){
+  const q = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+  const rows = [['Summary','Description','Assignee','Due date','Issue Type','Status']];
+  issues.forEach(i => rows.push([i.summary, i.source ? `${i.source.meeting}, ${i.source.t}: ${i.source.quote}` : '', (person(i.assignee)||{}).email || i.assignee, i.due||'', 'Task', i.status]));
+  return '\uFEFF' + rows.map(r=>r.map(q).join(',')).join('\r\n');
+}
+
+/* =====================================================================
+   Оценка качества агента-аналитика на размеченном наборе
+   ===================================================================== */
+function evaluate(set){
+  const res = {tp:0, fp:0, fn:0, whoOk:0, whoN:0, dueOk:0, dueN:0, byType:{}, meetings:[]};
+  for(const m of S.meetings.filter(x => x.gold && (!set || x.set===set))){
+    const {utt} = recognize(m); const pred = analyzeLocal(m, utt);
+    const gold = m.gold.map(g=>({...g, hit:false}));
+    let tp=0, fp=0;
+    for(const p of pred){
+      const g = gold.find(g => !g.hit && g.u===p.u && g.type===p.type);
+      const bt = res.byType[p.type] ||= {tp:0,fp:0,fn:0};
+      if(g){ g.hit = true; tp++; bt.tp++;
+        if(g.who){ res.whoN++; if(g.who===p.who) res.whoOk++; }
+        if('due' in g || p.type==='task' || p.type==='pm' || p.type==='meeting'){ res.dueN++; if((g.due||null)===(p.due||null)) res.dueOk++; }
+      } else { fp++; bt.fp++; }
+    }
+    const fn = gold.filter(g=>!g.hit); fn.forEach(g => (res.byType[g.type] ||= {tp:0,fp:0,fn:0}).fn++);
+    res.tp += tp; res.fp += fp; res.fn += fn.length;
+    res.meetings.push({id:m.id, title:m.title, set:m.set, tp, fp, fn:fn.length, misses:fn, extra: pred.filter(p => !m.gold.some(g=>g.u===p.u && g.type===p.type))});
+  }
+  const P = res.tp/(res.tp+res.fp||1), R = res.tp/(res.tp+res.fn||1);
+  res.P = P; res.R = R; res.F1 = P+R ? 2*P*R/(P+R) : 0;
+  return res;
+}
+
+/* =====================================================================
+   Интерфейс
+   ===================================================================== */
+const VIEWS = [
+  {id:'dashboard', name:'Главная', icon:'House', grp:'Работа', desc:'сводка на сегодня'},
+  {id:'meetings', name:'Встречи', icon:'VideoCamera', grp:'Работа', main:true, desc:'расшифровки Телемоста'},
+  {id:'pipeline', name:'Обработка', icon:'Lightning', grp:'Работа', main:true, desc:'запуск агентов'},
+  {id:'review', name:'Подтверждение', icon:'SealCheck', grp:'Работа', main:true, badge:()=>Object.values(S.runs).filter(r=>r.status==='awaiting').length, desc:'проверить и выполнить'},
+  {id:'todo', name:'Мои задачи', icon:'ListChecks', grp:'Работа', main:true, badge:()=>S.todos.filter(t=>!t.done).length, desc:'to-do руководителя'},
+  {id:'tracker', name:'Трекер задач', icon:'Kanban', grp:'svc', color:'c-tracker', desc:()=>`${S.settings.tracker==='jira'?'Jira':'Яндекс Трекер'}, задач из встреч: ${S.tracker.issues.filter(i=>i.source).length}`},
+  {id:'mail', name:'Почта', icon:'EnvelopeSimple', grp:'svc', color:'c-mail', desc:()=>`писем с итогами: ${S.outbox.length}`},
+  {id:'calendar', name:'Календарь', icon:'CalendarBlank', grp:'svc', color:'c-cal', desc:()=>`Телемост, назначено встреч: ${S.calendar.length}`},
+  {id:'journal', name:'Журнал', icon:'ClockCounterClockwise', grp:'mini'},
+  {id:'quality', name:'Качество разбора', icon:'Target', grp:'mini'},
+  {id:'settings', name:'Настройки', icon:'GearSix', grp:'mini'},
+];
+let current = 'dashboard', currentMeeting = 'm1';
+function renderNav(){
+  $('#nav').innerHTML = VIEWS.filter(v=>v.main).map(v => { const b = v.badge && v.badge();
+    return `<a href="#${v.id}" data-v="${v.id}" class="${v.id===current?'active':''}" ${v.id===current?'aria-current="page"':''}>${ic(v.icon)}<span class="lbl">${v.name.toLowerCase()}</span>${b?`<span class="cnt">${b}</span>`:''}</a>`; }).join('');
+  document.querySelectorAll('#nav a').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.v); });
+  const link = v => `href="#${v.id}" onclick="event.preventDefault();go('${v.id}')"`;
+  $('#menu').innerHTML = `<div class="pop-h">Куда агенты отправили итоги</div>`
+    + VIEWS.filter(v=>v.grp==='svc').map(v=>`<a class="svc ${v.id===current?'cur':''}" ${link(v)}><span class="tile ${v.color}">${ic(v.icon)}</span><span><b>${v.name}</b><small>${v.desc()}</small></span><span class="demo" title="Внешний сервис не подключён, показана копия того, что было бы отправлено">демо</span></a>`).join('')
+    + `<div class="pop-sep"></div><div class="pop-mini">${VIEWS.filter(v=>v.grp==='mini').map(v=>`<a class="${v.id===current?'cur':''}" ${link(v)}>${ic(v.icon)}${v.name}</a>`).join('')}</div>`;
+  const d = new Date(); $('#stamp').textContent = `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
+}
+function toggleMenu(){ const open = !$('#menu').classList.contains('open'); $('#menu').classList.toggle('open', open); $('#menuBtn').setAttribute('aria-expanded', open); if(open) $('#menu a')?.focus(); }
+function closeMenu(){ $('#menu').classList.remove('open'); $('#menuBtn')?.setAttribute('aria-expanded', 'false'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape' && $('#menu').classList.contains('open')){ closeMenu(); $('#menuBtn').focus(); } });
+document.addEventListener('click', e => { if(!e.target.closest('#menu, #menuBtn')) closeMenu(); });
+function setPill(html){ const p = $('#pill'); p.innerHTML = html||''; p.classList.toggle('show', !!html); }
+function go(v, arg){ current = v; if(arg) currentMeeting = arg; closeMenu(); setPill(''); renderNav(); (R[v]||R.dashboard)(); hydrateIcons(); window.scrollTo(0,0); try{ history.replaceState(null,'','#'+v); }catch(e){} }
+function hydrateIcons(){ document.querySelectorAll('[data-i]').forEach(el => { if(!el.innerHTML) el.innerHTML = ICONS[el.dataset.i]||''; }); }
+const TYPE_ICON = {task:'ListChecks', pm:'Flag', decision:'Gavel', risk:'Warning', question:'Question', meeting:'CalendarBlank', status:'ArrowsLeftRight'};
+const SUB_ICON = {contact:'Phone', control:'Eye', do:'Check'};
+const tag = t => `<span class="tag t-${t}">${ic(TYPE_ICON[t])}${TYPE_RU[t]||t}</span>`;
+const subTag = s => `<span class="tag">${ic(SUB_ICON[s])}${PM_SUB_RU[s]}</span>`;
+const confTxt = c => `<span class="conf-${c}">${{high:'высокая',medium:'средняя',low:'низкая'}[c]}</span>`;
+const srcTxt = s => s ? `<div class="quote"><span class="ts">${s.t}</span>${esc(s.speaker)}: «${esc(s.quote)}»</div>` : '';
+const initials = n => n.split(' ').map(x=>x[0]).join('').slice(0,2);
+const page = (title, sub) => `<h1 class="ptitle">${title}</h1>${sub?`<p class="sub">${sub}</p>`:''}`;
+const todayIso = () => iso(new Date());
+
+const R = {};
+R.dashboard = () => {
+  const runs = Object.values(S.runs);
+  const waiting = runs.filter(r=>r.status==='awaiting');
+  const open = S.todos.filter(t=>!t.done).sort((a,b)=>(a.due||'9')<(b.due||'9')?-1:1);
+  const saved = runs.filter(r=>r.status==='done').length * S.settings.minutesSaved;
+  const d = new Date();
+  $('#view').innerHTML = page('Сегодня', `${WD_NAMES[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}. Проект ${esc(S.settings.project)}.`) + `
+  <div class="kline">
+    <div class="${waiting.length?'hot':''}"><b>${waiting.length}</b><span>ждут подтверждения</span></div>
+    <div><b>${open.length}</b><span>открыто в моём to-do</span></div>
+    <div><b>${S.tracker.issues.filter(i=>i.source).length}</b><span>задач из встреч</span></div>
+    <div><b>${runs.filter(r=>r.status==='done').length}</b><span>встреч обработано</span></div>
+    <div><b>${saved}</b><span>минут сэкономлено (модель)</span></div>
+  </div>
+  <div class="two">
+   <div class="card"><h2>${ic('ListChecks')}Моё ближайшее</h2>
+    ${open.slice(0,7).map(t=>`<div class="todo">${subTag(t.sub)}<div class="tx"><div>${esc(t.text)}</div><div class="muted small">${esc(t.meeting)}</div></div><span class="due ${t.due && t.due<todayIso()?'late':''}">${t.due?toRu(t.due).slice(0,5):'без срока'}</span></div>`).join('')
+      || `<p class="muted">Здесь появятся ваши дела после первой обработанной встречи.</p><button class="btn primary" onclick="go('pipeline')">${ic('Lightning')}Обработать встречу</button>`}
+    ${open.length>7?`<p style="margin:12px 0 0"><button class="btn sm" onclick="go('todo')">Все ${open.length} пунктов</button></p>`:''}
+   </div>
+   <div class="card"><h2>${ic('VideoCamera')}Встречи</h2>
+    ${S.meetings.map(m=>{ const r=S.runs[m.id]; const st = !r ? '<span class="st">не обработана</span>' : r.status==='awaiting' ? '<span class="st wait">ждёт подтверждения</span>' : '<span class="st done">выполнено</span>';
+      const act = !r ? `<button class="btn sm" onclick="go('pipeline','${m.id}')">Обработать</button>` : r.status==='awaiting' ? `<button class="btn sm red" onclick="go('review','${m.id}')">Проверить</button>` : `<button class="btn sm" onclick="go('pipeline','${m.id}')">Открыть</button>`;
+      return `<div class="todo"><div class="tx"><div>${esc(m.title)}</div><div class="small">${st} <span class="muted">${ruDateFull(m.date)}</span></div></div><span class="spacer"></span>${act}</div>`;}).join('')}
+   </div>
+  </div>`;
+  if(waiting.length) setPill(`<span class="pinfo"><b>${waiting.length}</b> ${waiting.length===1?'отчёт ждёт':'отчёта ждут'} проверки</span><button class="pbtn red" onclick="go('review')">${ic('SealCheck')}Проверить</button>`);
+};
+
+R.meetings = () => {
+  $('#view').innerHTML = page('Встречи', 'Созвоны в Яндекс Телемосте и их расшифровки. Выберите встречу, чтобы запустить агентов.') + `
+  <div class="posters">
+   ${S.meetings.map(m=>{ const r=S.runs[m.id]; const st = !r ? '<span class="st">не обработана</span>' : r.status==='awaiting' ? '<span class="st wait">ждёт подтверждения</span>' : '<span class="st done">выполнено</span>';
+     return `<article class="poster"><div class="when">${ruDateFull(m.date)}, ${m.date.slice(11)}</div><h3>${esc(m.title)}</h3>
+      <div class="ava" title="${esc(m.participants.map(p=>p.name).join(', '))}">${m.participants.map(p=>`<span class="${p.external?'ext':''}">${initials(p.name)}</span>`).join('')}</div>
+      <div class="small muted">${recognize(m).utt.length} реплик${m.gold?`, размечена (${m.set==='test'?'контрольный':'настроечный'} набор)`:''}</div>
+      <div class="small">${st}</div><div class="foot"><button class="btn sm primary" onclick="go('pipeline','${m.id}')">${ic('Lightning')}Обработать</button><button class="btn sm" onclick="showTranscript('${m.id}')">${ic('FileText')}Расшифровка</button></div></article>`; }).join('')}
+   <button type="button" class="poster new" id="newMeetBtn" aria-expanded="false" aria-controls="addm" onclick="openAddMeeting()">${ic('Plus')}<h3>Новая встреча</h3><span class="muted small">Загрузите файл расшифровки или вставьте текст</span></button>
+  </div>
+  <div id="trx"></div>
+  <div class="card" id="addm" hidden><div class="row" style="margin-bottom:14px"><h2 style="margin:0">${ic('Plus')}Новая встреча</h2><span class="spacer"></span><button type="button" class="btn sm" onclick="closeAddMeeting()">${ic('X')}Отмена</button></div>
+   <div class="note" style="background:var(--soft)">${ic('Info')}<p>Сейчас встречи добавляются вручную: загрузите файл расшифровки или вставьте текст. В рабочей версии Телемост присылает расшифровку письмом, письмо пересылается на адрес сервиса, и встреча появляется здесь сама.</p></div>
+   <div class="addm"><div>
+    <div class="drop" id="drop">
+      <span class="big">${ic('UploadSimple')}</span>
+      <p><b>Перетащите файл расшифровки сюда</b></p>
+      <p class="muted small">Текстовый файл .txt, каждая строка «[чч:мм:сс] Имя Фамилия: реплика»</p>
+      <input type="file" id="nm_file" accept=".txt,text/plain">
+      <label class="btn sm" for="nm_file" style="margin-top:6px">${ic('Paperclip')}Выбрать файл</label>
+      <div id="nm_fileinfo"></div>
+    </div>
+    <div class="or">или вставьте текст</div>
+    <textarea id="nm_text" style="min-height:170px" aria-label="Текст расшифровки" placeholder="[00:00:05] Алексей Смирнов: Всем привет, начинаем."></textarea>
+   </div><div>
+    <label class="f" for="nm_title" style="margin-top:0">Название встречи</label><input id="nm_title" style="width:100%" placeholder="Например: статус по проекту">
+    <div class="row" style="align-items:flex-end"><div><label class="f" for="nm_date">Дата и время</label><input id="nm_date" type="datetime-local" value="2026-11-23T10:00"></div>
+    <div><label class="f" for="nm_dur">Длительность, мин</label><input id="nm_dur" type="number" value="45" style="width:110px"></div></div>
+    <details class="people"><summary>Участники: ${TEAM.length}, команда проекта. Изменить</summary>
+     <p class="muted small" style="margin:8px 0 0">По одному в строке: «Имя Фамилия; e-mail; роль; внешний»</p>
+     <textarea id="nm_people" aria-label="Участники">${TEAM.map(p=>`${p.name}; ${p.email}; ${p.role}`).join('\n')}</textarea></details>
+    <div class="row" style="margin-top:20px"><span class="spacer"></span><button class="btn primary" onclick="addMeeting()">${ic('Check')}Сохранить встречу</button></div>
+   </div></div></div>`;
+  const readFile = f => { if(!f) return; const r = new FileReader(); r.onload = () => { $('#nm_text').value = r.result; const n = String(r.result).split('\n').filter(l=>/^\s*\[\d/.test(l)).length;
+    $('#nm_fileinfo').innerHTML = `<span class="chip">${ic('FileText')}${esc(f.name)}, строк с репликами: ${n}</span>`; if(!$('#nm_title').value) $('#nm_title').value = f.name.replace(/\.[^.]+$/,''); }; r.readAsText(f, 'utf-8'); };
+  $('#nm_file').onchange = e => readFile(e.target.files[0]);
+  const d = $('#drop');
+  ['dragenter','dragover'].forEach(t => d.addEventListener(t, e => { e.preventDefault(); d.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t => d.addEventListener(t, e => { e.preventDefault(); d.classList.remove('over'); }));
+  d.addEventListener('drop', e => readFile(e.dataTransfer.files[0]));
+};
+function openAddMeeting(){ const f = $('#addm'); f.hidden = false; $('#newMeetBtn').setAttribute('aria-expanded','true'); f.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(()=>$('#nm_title').focus({preventScroll:true}), 300); }
+function closeAddMeeting(){ $('#addm').hidden = true; $('#newMeetBtn').setAttribute('aria-expanded','false'); $('#newMeetBtn').focus(); }
+function showTranscript(id){
+  const m = S.meetings.find(x=>x.id===id); const {utt} = recognize(m);
+  $('#trx').innerHTML = `<div class="card"><div class="row"><h2 style="margin:0">${ic('FileText')}Расшифровка: ${esc(m.title)}</h2><span class="spacer"></span><button class="btn sm" onclick="$('#trx').innerHTML=''">Скрыть</button></div>
+   <table style="margin-top:8px">${utt.map(x=>`<tr><td class="ts" style="width:90px">${x.t}</td><td style="width:180px"><b>${esc(x.speaker)}</b></td><td>${esc(x.text)}</td></tr>`).join('')}</table></div>`;
+  $('#trx').scrollIntoView({behavior:'smooth'});
+}
+function addMeeting(){
+  const title = $('#nm_title').value.trim(), date = $('#nm_date').value, text = $('#nm_text').value.trim();
+  const participants = $('#nm_people').value.split('\n').map(l=>l.split(';').map(s=>s.trim())).filter(a=>a[0]).map(([name,email,role,ext]) => {
+    const known = [...TEAM, CUSTOMER].find(p=>p.name===name);
+    return {name, email: email || known?.email || '', role: role||'', external: /^(да|внешн)/i.test(ext||'') || !!known?.external, aliases: known?.aliases || [name.split(' ')[0]]};
+  });
+  if(!title || !date || !text){ toast('Заполните название, дату и расшифровку'); return; }
+  const m = {id:uid('m'), title, date, duration:+$('#nm_dur').value||45, participants, transcript:text};
+  const {utt, errors} = recognize(m);
+  if(!utt.length){ toast('Не удалось разобрать расшифровку: проверьте формат строк'); return; }
+  S.meetings.push(m); journal('Пользователь', `Добавлена встреча «${title}» (${utt.length} реплик${errors.length?`, пропущено строк: ${errors.length}`:''})`, m.id); save();
+  toast('Встреча добавлена'); go('pipeline', m.id);
+}
+
+R.pipeline = () => {
+  const m = S.meetings.find(x=>x.id===currentMeeting) || S.meetings[0]; currentMeeting = m.id;
+  const run = S.runs[m.id];
+  $('#view').innerHTML = page('Обработка', 'Агенты разбирают расшифровку и готовят изменения. Ничего не выполняется без вашего подтверждения.') + `
+  <div class="row" style="margin:-6px 0 22px"><label class="small muted" for="pm_sel">Встреча</label><select id="pm_sel">${S.meetings.map(x=>`<option value="${x.id}" ${x.id===m.id?'selected':''}>${esc(x.title)}, ${ruDateFull(x.date)}</option>`).join('')}</select>
+   <span class="muted small">Аналитик: ${S.settings.llm.enabled?'языковая модель':'локальные правила'}</span></div>
+  <div class="steps">${AGENTS.map(a=>`<div class="step ${run?'done':''}"><b>${STEP_NAME[a.id]}</b>${{rec:'речь в текст',analyst:'протокол',tracker:'Jira / Трекер',mail:'письмо',calendar:'Телемост',pm:'мой to-do',ctrl:'отчёт'}[a.id]}</div>`).join('')}</div>
+  <div class="log" id="log">${run ? `<div class="d">Встреча обработана ${run.createdAt}. Пунктов протокола: ${run.items.length}, операций: ${run.ops.length}.</div>` : '<span class="muted">Нажмите «Запустить агентов» внизу экрана.</span>'}</div>
+  <div id="proto">${run ? protoTable(run) : ''}</div>`;
+  $('#pm_sel').onchange = e => { currentMeeting = e.target.value; go('pipeline'); };
+  setPill(`<span class="pinfo">${esc(m.title)}</span><button class="pbtn ${run?'':'red'}" id="runBtn">${ic('Play')}${run?'Запустить заново':'Запустить агентов'}</button><button class="pbtn ${run && run.status==='awaiting'?'red':''}" id="toReview" ${run && run.status==='awaiting'?'':'disabled'} onclick="go('review','${m.id}')">${ic('SealCheck')}К подтверждению</button>`);
+  $('#runBtn').onclick = async () => { $('#log').innerHTML = ''; document.querySelectorAll('.step').forEach(s=>s.classList.remove('done')); $('#runBtn').disabled = true;
+    const r = await runPipeline(m.id); $('#runBtn').disabled = false; $('#proto').innerHTML = protoTable(r);
+    const tr = $('#toReview'); if(tr){ tr.disabled = false; tr.classList.add('red'); $('#runBtn').classList.remove('red'); } };
+};
+function protoTable(run){
+  return `<div class="card" style="margin-top:18px"><h2>${ic('FileText')}Протокол встречи</h2><table><tr><th style="width:190px">Тип</th><th>Содержание</th><th style="width:160px">Исполнитель</th><th style="width:110px">Срок</th></tr>
+   ${run.items.slice().sort((a,b)=>a.u-b.u).map(i=>`<tr><td>${i.type==='pm'?subTag(i.sub):tag(i.type)}</td><td>${esc(i.text)}${srcTxt(i)}</td><td>${esc(i.who|| (i.type==='pm'?'руководитель':'') || 'не назначен')}</td><td class="ts" style="font-weight:400">${i.due?toRu(i.due).slice(0,5)+(i.time?', '+i.time:''):'нет'}</td></tr>`).join('')}</table></div>`;
+}
+
+R.review = () => {
+  const pending = Object.values(S.runs).filter(r=>r.status==='awaiting');
+  const run = S.runs[currentMeeting]?.status==='awaiting' ? S.runs[currentMeeting] : pending[0];
+  if(!run){ $('#view').innerHTML = page('Подтверждение', 'Здесь появляется отчёт агента-контролёра после обработки встречи.') + `<div class="card"><p>Сейчас проверять нечего.</p><button class="btn primary" onclick="go('pipeline')">${ic('Lightning')}Обработать встречу</button></div>`; return; }
+  const m = S.meetings.find(x=>x.id===run.meetingId);
+  const people = m.participants.filter(p=>!p.external);
+  const grp = id => run.ops.filter(o=>o.agent===id);
+  const warn = o => o.flag ? `<div class="flag">${esc(o.flag)}</div>` : o.conf==='low' ? `<div class="flag">Не найдены исполнитель и срок</div>` : (o.conf==='medium' && o.kind==='create_issue') ? `<div class="flag">Проверьте исполнителя и срок</div>` : '';
+  const cb = o => `<input type="checkbox" ${o.approved?'checked':''} onchange="edit('${o.id}','approved',this.checked)" aria-label="Выполнить">`;
+  const row = o => {
+    let body = '';
+    if(o.kind==='create_issue') body = `<div><b>Создать задачу</b></div>
+      <div class="rv-fields"><input value="${esc(o.summary)}" oninput="edit('${o.id}','summary',this.value)" aria-label="Название задачи">
+      <select onchange="edit('${o.id}','who',this.value)" aria-label="Исполнитель"><option value="">Исполнитель не выбран</option>${people.map(p=>`<option ${p.name===o.who?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+      <input class="dt" value="${toRu(o.due)}" placeholder="ДД.ММ.ГГГГ" onchange="edit('${o.id}','due',fromRu(this.value))" aria-label="Срок"></div>`;
+    if(o.kind==='transition') body = `<b>Изменить статус</b> <span class="ts">${esc(o.key)}</span>на «${esc(o.to)}»`;
+    if(o.kind==='send_mail') body = `<b>Отправить письмо участникам</b> <span class="muted">(${o.to.length})</span><div class="muted">${esc(o.subject)}</div><details><summary>Текст письма</summary><div class="mail" style="margin-top:8px">${esc(o.body)}</div></details>`;
+    if(o.kind==='create_event') body = `<b>Создать встречу в Телемосте</b>: ${ruDate(o.date)}, ${WD_NAMES[parseDay(o.date).getDay()]}, <select onchange="edit('${o.id}','time',this.value)" aria-label="Время">${Array.from({length:23},(_,i)=>`${pad(8+Math.floor(i/2))}:${i%2?'30':'00'}`).map(t=>`<option ${t===o.time?'selected':''}>${t}</option>`).join('')}</select>, ${o.duration} мин, участников: ${o.attendees.length}`;
+    if(o.kind==='todo') body = `<div class="rv-fields todo-f">${subTag(o.sub)}<input value="${esc(o.text)}" oninput="edit('${o.id}','text',this.value)" aria-label="Пункт"><input class="dt" value="${toRu(o.due)}" placeholder="ДД.ММ.ГГГГ" onchange="edit('${o.id}','due',fromRu(this.value))" aria-label="Срок"></div>`;
+    return `<div class="rv">${cb(o)}<div>${body}${warn(o)}${srcTxt(o.src)}</div></div>`;
+  };
+  const compact = o => `<div class="rv compact">${cb(o)}<div class="rv-c"><span>${esc(o.text)}</span><span class="ts" style="font-weight:400">${o.due?toRu(o.due).slice(0,5):'без срока'}</span></div></div>`;
+  const section = (icon, title, list, render) => list.length ? `<div class="agent-h">${ic(icon)}${title} <span class="muted" style="font-weight:400">${list.length}</span></div>${list.map(render||row).join('')}` : '';
+  const pmOps = grp('pm'), own = pmOps.filter(o=>!o.derived), derived = pmOps.filter(o=>o.derived);
+  const n = run.ops.filter(o=>o.approved).length;
+  $('#view').innerHTML = page('Подтверждение', `Встреча «${esc(m.title)}», ${ruDateFull(m.date)}. Снимите отметку с лишнего, поправьте поля и нажмите «ОК» внизу.`) + `
+  ${pending.length>1?`<div class="row" style="margin:-8px 0 18px">${pending.map(r=>`<span class="pill ${r===run?'on':''}" onclick="currentMeeting='${r.meetingId}';go('review')">${esc(S.meetings.find(x=>x.id===r.meetingId).title)}</span>`).join(' ')}</div>`:''}
+  <div class="card">
+   ${section('Kanban','Агент трекера', grp('tracker'))}${section('EnvelopeSimple','Агент почты', grp('mail'))}${section('CalendarBlank','Агент календаря', grp('calendar'))}
+   ${section('ListChecks','Мой to-do', own)}${section('Eye','Контроль сроков и рисков, добавлено агентом', derived, compact)}
+  </div>`;
+  setPill(`<span class="pinfo" id="selInfo">выбрано <b>${n}</b> из ${run.ops.length}</span><button class="pbtn" onclick="setAll('${run.meetingId}',true)">Выбрать все</button><button class="pbtn" onclick="setAll('${run.meetingId}',false)">Снять все</button><button class="pbtn red" id="okBtn" onclick="approve('${run.meetingId}')">${ic('Check')}ОК, выполнить</button>`);
+};
+function findOp(id){ for(const r of Object.values(S.runs)){ const o = r.ops.find(x=>x.id===id); if(o) return o; } }
+function edit(id, f, v){ const o = findOp(id); if(!o) return; o[f] = v; if(o.kind==='create_issue' && (f==='who'||f==='due')) o.conf = confidence({type:'task', who:o.who, due:o.due}); save();
+  if(f==='approved'){ const el = $('#selInfo'); if(el){ const r = Object.values(S.runs).find(r=>r.ops.includes(o)); el.innerHTML = `выбрано <b>${r.ops.filter(x=>x.approved).length}</b> из ${r.ops.length}`; } } }
+function setAll(mid, v){ S.runs[mid].ops.forEach(o=>o.approved=v); save(); go('review'); }
+function approve(mid){ applyRun(mid); go('todo'); }
+
+R.todo = () => {
+  const f = R.todo.filter || 'open';
+  const list = S.todos.filter(t => f==='all' || (f==='open' ? !t.done : t.done));
+  const subs = [['contact','Связаться'],['control','Проконтролировать'],['do','Сделать']];
+  $('#view').innerHTML = page('Мои задачи', 'Что сделать самому, что проконтролировать и с кем связаться по итогам встреч.') + `
+  <div class="row" style="margin:-6px 0 18px"><div class="seg" role="tablist">${[['open','Открытые'],['done','Выполненные'],['all','Все']].map(([k,l])=>`<span role="tab" tabindex="0" class="${f===k?'on':''}" onclick="R.todo.filter='${k}';go('todo')">${l}</span>`).join('')}</div></div>
+  ${subs.map(([sub,label]) => { const arr = list.filter(t=>t.sub===sub); return arr.length ? `<div class="card"><h2>${ic(SUB_ICON[sub])}${label} <span class="muted" style="font-weight:400">${arr.length}</span></h2>` +
+     arr.sort((a,b)=>(a.due||'9')<(b.due||'9')?-1:1).map(t=>`<div class="todo ${t.done?'done':''}"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${t.id}',this.checked)" aria-label="Выполнено"><div class="tx"><div>${esc(t.text)}</div>
+       <div class="muted small">${esc(t.meeting)}${t.derived?', добавлено агентом':''}${t.issue?`, в трекере ${t.issue}`:''}</div>${srcTxt(t.src)}</div><span class="due ${t.due && t.due<todayIso() && !t.done?'late':''}">${t.due?toRu(t.due):'без срока'}</span></div>`).join('') + '</div>' : ''; }).join('') || `<div class="card"><p>Пунктов нет.</p><button class="btn primary" onclick="go('pipeline')">${ic('Lightning')}Обработать встречу</button></div>`}`;
+  const openN = S.todos.filter(t=>!t.done && !t.issue).length;
+  if(openN) setPill(`<span class="pinfo"><b>${openN}</b> не в трекере</span><button class="pbtn" onclick="todoToTracker()">${ic('Kanban')}Поставить открытые в трекер на меня</button>`);
+};
+function toggleTodo(id, v){ const t = S.todos.find(x=>x.id===id); t.done = v; journal('Руководитель', `${v?'Выполнено':'Возвращено в работу'}: ${t.text}`, t.meetingId); save(); renderNav(); setTimeout(()=>go('todo'), 150); }
+function todoToTracker(){
+  let n = 0; const pm = TEAM.find(p=>p.email===S.settings.pmEmail) || TEAM[0];
+  for(const t of S.todos.filter(t=>!t.done && !t.issue)){
+    const key = `${S.settings.project}-${++S.tracker.seq}`; t.issue = key; n++;
+    S.tracker.issues.push({key, summary:t.text, assignee:pm.name, status:'К выполнению', due:t.due, source:{meeting:t.meeting, t:t.src?.t, quote:t.src?.quote}});
+    S.requests.unshift({ts:nowStamp(), meetingId:t.meetingId, ...apiRequest({kind:'create_issue_pm', summary:t.text, who:pm.name, due:t.due, src:t.src}, {title:t.meeting, date:'2026-01-01'})});
+  }
+  journal('Агент руководителя', `Поставлено в трекер на руководителя: ${n}`); save(); toast(`Создано задач в трекере: ${n}`); go('todo');
+}
+
+const SVC_NOTE = {
+  tracker: () => `Jira не подключена, поэтому здесь копия очереди ${esc(S.settings.project)}: что агент трекера создал и какие статусы поменял после вашего «ОК». Для каждой задачи подготовлен такой же запрос, какой ушёл бы в ${S.settings.tracker==='jira'?'Jira':'Яндекс Трекер'}. Задачи можно перенести в Jira через импорт CSV.`,
+  mail: () => `Почта не подключена, поэтому письма никуда не уходили. Каждое можно открыть в своей почтовой программе уже заполненным или скачать файлом .eml.`,
+  calendar: () => `Телемост не подключён, поэтому ссылки на встречи демонстрационные. Для каждой встречи подготовлен запрос к API Телемоста с включённым конспектом, а файл .ics добавляет её в любой календарь.`,
+};
+function svcHead(id){
+  const tabs = VIEWS.filter(v=>v.grp==='svc');
+  const cnt = {tracker:S.tracker.issues.filter(i=>i.source).length, mail:S.outbox.length, calendar:S.calendar.length};
+  return page('Итоги в сервисах', 'Что агенты отправили после вашего подтверждения.') +
+   `<div class="svc-tabs" role="tablist">${tabs.map(v=>`<a role="tab" aria-selected="${v.id===id}" class="svc-tab ${v.id===id?'on':''}" href="#${v.id}" onclick="event.preventDefault();go('${v.id}')"><span class="tile ${v.color}">${ic(v.icon)}</span>${v.name} <span class="n">${cnt[v.id]}</span></a>`).join('')}</div>
+   <div class="note">${ic('Info')}<p>${SVC_NOTE[id]()} <a href="#settings" onclick="event.preventDefault();go('settings')">Подключения в настройках</a></p></div>`;
+}
+const STT = {'В работе':'s-work','На проверке':'s-rev','Готово':'s-done'};
+R.tracker = () => {
+  const reqs = S.requests.filter(r=>/issue/.test(r.url));
+  const list = S.tracker.issues.slice().sort((a,b)=>(!!b.source - !!a.source) || (a.key<b.key?1:-1));
+  $('#view').innerHTML = svcHead('tracker') + `
+  <div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">${ic('Kanban')}Задачи очереди ${esc(S.settings.project)}</h2><span class="spacer"></span><button class="btn sm" onclick="download('meetflow-issues.csv', csvFor(S.tracker.issues.filter(i=>i.source)), 'text/csv;charset=utf-8')">${ic('DownloadSimple')}CSV для импорта в Jira</button></div>
+   <table><tr><th style="width:96px">Ключ</th><th>Задача</th><th style="width:170px">Исполнитель</th><th style="width:90px">Срок</th><th style="width:130px">Статус</th></tr>
+   ${list.map(i=>`<tr><td class="key">${i.key}</td><td>${esc(i.summary)}${i.source?`<div class="quote">из встречи «${esc(i.source.meeting)}», <span class="ts">${i.source.t||''}</span></div>`:''}</td><td>${esc(i.assignee||'не назначен')}</td><td class="ts" style="font-weight:400">${i.due?toRu(i.due).slice(0,5):'нет'}</td><td><span class="stt ${STT[i.status]||''}">${i.status}</span></td></tr>`).join('')}</table></div>
+  ${reqs.length?`<div class="card"><details><summary>${ic('Code')} Запросы к API трекера: ${reqs.length}. Показать последний</summary><div class="code" style="margin-top:10px">${reqs[0].method} ${esc(reqs[0].url)}\n${esc(JSON.stringify(reqs[0].body,null,2))}</div></details></div>`:''}`;
+};
+R.mail = () => {
+  $('#view').innerHTML = svcHead('mail') + `<div class="card">
+  ${S.outbox.map(ml=>`<div class="ml"><div class="row"><b>${esc(ml.subject)}</b><span class="spacer"></span><span class="muted small">${ml.ts}</span></div><div class="muted small" style="margin:2px 0 8px">Кому: ${esc(ml.to.join(', '))}</div>
+   <div class="row"><a class="btn sm primary" href="mailto:${ml.to.join(',')}?subject=${encodeURIComponent(ml.subject)}&body=${encodeURIComponent(ml.body)}">${ic('ArrowSquareOut')}Открыть в почте</a><button class="btn sm" onclick="dlMail('${ml.id}')">${ic('DownloadSimple')}Скачать .eml</button></div>
+   <details><summary>Текст письма</summary><div class="mail" style="margin-top:8px">${esc(ml.body)}</div></details></div>`).join('') || '<p class="muted" style="margin:0">Писем пока нет. Они появятся после подтверждения первой обработанной встречи.</p>'}</div>`;
+};
+function dlMail(id){ const ml = S.outbox.find(x=>x.id===id); download('itogi-vstrechi.eml', emlFor(ml), 'message/rfc822'); }
+R.calendar = () => {
+  const req = S.requests.filter(r=>/telemost/.test(r.url))[0];
+  $('#view').innerHTML = svcHead('calendar') + `
+  <div class="card"><h2>${ic('CalendarBlank')}Назначенные встречи</h2><table><tr><th>Встреча</th><th>Когда</th><th>Участники</th><th></th></tr>
+  ${S.calendar.map(e=>`<tr><td>${esc(e.title)}<div class="quote">${esc(e.join)}</div></td><td>${ruDate(e.start)}, ${e.start.slice(11)}-${e.end.slice(11)}</td><td>${e.attendees.length}</td><td style="text-align:right"><button class="btn sm" onclick="dlIcs('${e.id}')">${ic('DownloadSimple')}Скачать .ics</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Встреч пока нет.</td></tr>'}</table></div>
+  <div class="card"><details><summary>Занятость участников, которую агент учёл при подборе времени: ${S.busy.length}</summary><table style="margin-top:8px">${S.busy.map(b=>`<tr><td>${esc(b.email)}</td><td>${ruDate(b.start)}, ${b.start.slice(11)}-${b.end.slice(11)}</td><td class="muted">${esc(b.title)}</td></tr>`).join('')}</table></details>
+  ${req?`<details><summary>${ic('Code')} Последний запрос к API Телемоста</summary><div class="code" style="margin-top:10px">${req.method} ${esc(req.url)}\n${esc(JSON.stringify(req.body,null,2))}</div></details>`:''}</div>`;
+};
+function dlIcs(id){ const e = S.calendar.find(x=>x.id===id); download('vstrecha.ics', icsFor(e), 'text/calendar;charset=utf-8'); }
+R.journal = () => {
+  $('#view').innerHTML = `<h1 class="ptitle">Журнал</h1><p class="sub">Все действия агентов и решения руководителя</p>
+  <div class="card"><div class="row" style="margin-bottom:8px"><span class="spacer"></span><button class="btn sm" onclick="download('meetflow-journal.json', JSON.stringify({journal:S.journal, requests:S.requests},null,2),'application/json')">Экспорт журнала и запросов (JSON)</button></div>
+  <table><tr><th style="width:150px">Время</th><th style="width:180px">Кто</th><th>Событие</th></tr>${S.journal.slice(0,200).map(j=>`<tr><td class="ts" style="white-space:nowrap">${j.ts}</td><td>${esc(j.agent)}</td><td>${esc(j.msg)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Записей нет.</td></tr>'}</table></div>`;
+};
+R.quality = () => {
+  const dev = evaluate('dev'), test = evaluate('test'), all = evaluate();
+  const pct = v => (v*100).toFixed(1).replace('.',',') + ' %';
+  const block = (r, name) => `<tr><td><b>${name}</b></td><td>${r.tp}</td><td>${r.fp}</td><td>${r.fn}</td><td>${pct(r.P)}</td><td>${pct(r.R)}</td><td><b>${pct(r.F1)}</b></td><td>${r.whoN?pct(r.whoOk/r.whoN):'нет'}</td><td>${r.dueN?pct(r.dueOk/r.dueN):'нет'}</td></tr>`;
+  $('#view').innerHTML = `<h1 class="ptitle">Качество разбора</h1><p class="sub">Сравнение пунктов, найденных агентом-аналитиком (локальный режим), с ручной разметкой встреч</p>
+  <div class="card"><table><tr><th>Набор</th><th>Верно</th><th>Лишние</th><th>Пропуски</th><th>Точность</th><th>Полнота</th><th>F1</th><th>Исполнитель</th><th>Срок</th></tr>
+   ${block(dev,'Настроечный (2 встречи)')}${block(test,'Контрольный (2 встречи)')}${block(all,'Всего')}</table>
+   <p class="muted" style="font-size:12px;margin:10px 0 0">Пункт засчитывается, если совпали номер реплики и тип. «Исполнитель» и «Срок»: доля верных значений среди найденных пунктов.</p></div>
+  <div class="card"><h2>По типам пунктов (все встречи)</h2><table><tr><th>Тип</th><th>Верно</th><th>Лишние</th><th>Пропуски</th></tr>${Object.entries(all.byType).map(([t,v])=>`<tr><td>${tag(t)}</td><td>${v.tp}</td><td>${v.fp}</td><td>${v.fn}</td></tr>`).join('')}</table></div>
+  <div class="card"><h2>Ошибки на контрольном наборе</h2>${test.meetings.map(m=>`<p><b>${esc(m.title)}</b></p>${m.misses.length+m.extra.length===0?'<p class="muted">Ошибок нет.</p>':''}<ul>${m.misses.map(g=>`<li>пропуск: реплика ${g.u}, ${TYPE_RU[g.type]}</li>`).join('')}${m.extra.map(p=>`<li>лишнее: реплика ${p.u}, ${TYPE_RU[p.type]}, «${esc(p.text)}»</li>`).join('')}</ul>`).join('')}</div>`;
+};
+R.settings = () => {
+  const st = S.settings, L = st.llm;
+  $('#view').innerHTML = `<h1 class="ptitle">Настройки</h1><p class="sub">Проект, подключения и правила работы агентов</p>
+  <div class="note">${ic('PlugsConnected')}<p>Jira, почта и Телемост в прототипе работают в демо-режиме: агенты готовят те же запросы к их API, но не отправляют их. Браузер не может обращаться к этим сервисам напрямую, для живого подключения нужна небольшая серверная часть с ключами доступа. Языковая модель подключается по-настоящему.</p></div>
+  <div class="two"><div class="card"><h2>Проект</h2>
+    <label class="f">Ключ проекта / очередь</label><input id="s_proj" value="${esc(st.project)}">
+    <label class="f">Система учёта задач</label><select id="s_tr"><option value="jira" ${st.tracker==='jira'?'selected':''}>Jira</option><option value="yt" ${st.tracker==='yt'?'selected':''}>Яндекс Трекер</option></select>
+    <label class="f">Адрес Jira</label><input id="s_site" value="${esc(st.jiraSite)}">
+    <label class="f">E-mail руководителя проекта</label><input id="s_pm" value="${esc(st.pmEmail)}">
+    <label class="f">Рабочие часы для подбора встреч</label><input id="s_ws" type="number" value="${st.workStart}" style="width:70px"> до <input id="s_we" type="number" value="${st.workEnd}" style="width:70px">
+    <label class="chk"><input type="checkbox" id="s_ac" ${st.autoControl?'checked':''}> Добавлять в мой to-do контроль задач команды со сроком</label>
+    <label class="chk"><input type="checkbox" id="s_pt" ${st.pmToTracker?'checked':''}> Сразу ставить мои to-do задачами в трекер на меня</label>
+    <label class="f">Экономия времени на одну встречу для оценки, мин</label><input id="s_ms" type="number" value="${st.minutesSaved}" style="width:90px">
+  </div><div class="card"><h2>Языковая модель (агент-аналитик)</h2>
+    <p class="muted" style="font-size:12px;margin-top:0">OpenAI-совместимый интерфейс: YandexGPT в Yandex AI Studio или локальная модель. Без подключения работают локальные правила.</p>
+    <label class="chk"><input type="checkbox" id="l_on" ${L.enabled?'checked':''}> Использовать языковую модель</label>
+    <label class="f">Адрес API</label><input id="l_url" value="${esc(L.baseUrl)}" style="width:100%">
+    <label class="f">API-ключ</label><input id="l_key" type="password" value="${esc(L.apiKey)}" style="width:100%">
+    <label class="f">Идентификатор каталога (заголовок OpenAI-Project)</label><input id="l_fld" value="${esc(L.folder)}" style="width:100%">
+    <label class="f">Модель</label><input id="l_model" value="${esc(L.model)}" style="width:100%">
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="testLLM()">Проверить подключение</button><span id="l_res" class="muted"></span></div>
+  </div></div>
+  <div class="row"><button class="btn primary" onclick="saveSettings()">Сохранить</button><span class="spacer"></span><button class="btn danger" onclick="if(confirmReset())resetDemo()">Сбросить демо-данные</button></div>`;
+};
+function confirmReset(){ return true; }
+function saveSettings(){
+  const st = S.settings;
+  st.project = $('#s_proj').value.trim()||'CRM'; st.tracker = $('#s_tr').value; st.jiraSite = $('#s_site').value.trim(); st.pmEmail = $('#s_pm').value.trim();
+  st.workStart = +$('#s_ws').value; st.workEnd = +$('#s_we').value; st.autoControl = $('#s_ac').checked; st.pmToTracker = $('#s_pt').checked; st.minutesSaved = +$('#s_ms').value;
+  Object.assign(st.llm, {enabled:$('#l_on').checked, baseUrl:$('#l_url').value.trim(), apiKey:$('#l_key').value, folder:$('#l_fld').value.trim(), model:$('#l_model').value.trim()});
+  journal('Пользователь','Настройки сохранены'); save(); toast('Настройки сохранены');
+}
+async function testLLM(){
+  saveSettings(); const el = $('#l_res'); el.textContent = 'проверка…';
+  try { const m = S.meetings[0]; const {utt} = recognize(m); const items = await analyzeLLM(m, utt.slice(0,6)); el.textContent = `модель ответила, пунктов: ${items.length}`; el.className = 'conf-high'; }
+  catch(e){ el.textContent = 'ошибка: ' + e.message; el.className = 'conf-low'; }
+}
+
+/* ---------------------------- запуск ---------------------------- */
+load();
+const start = (location.hash||'').slice(1);
+go(VIEWS.some(v=>v.id===start) ? start : 'dashboard');
+window.MeetFlow = {S:()=>S, runPipeline, applyRun, evaluate, analyzeLocal, recognize, parseDue, icsFor, emlFor, csvFor, resetDemo, go};
+</script>
+</body>
+</html>
